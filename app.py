@@ -1,133 +1,328 @@
-import sqlite3
-import pandas as pd
-import streamlit as st
-from datetime import datetime
-from dateutil import tz
-import os
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aesthetic Machine Problem Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            color: #333333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            color: #2c3e50;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+        .section {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .kpi {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+        .metric {
+            text-align: center;
+            margin: 10px;
+            background: #eaf2f8;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #d1ecf1;
+        }
+        .metric.red { background: #f8d7da; border-color: #f5c6cb; }
+        .metric.green { background: #d4edda; border-color: #c3e6cb; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #2980b9;
+            color: white;
+        }
+        .down {
+            background-color: #f8d7da;
+        }
+        .running {
+            background-color: #d4edda;
+        }
+        .chat-msg {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+        .chat-author {
+            font-weight: bold;
+            color: #2980b9;
+        }
+        .chat-time {
+            font-size: small;
+            color: #7f8c8d;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: #eaf2f8;
+        }
+        button {
+            background: #2980b9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #3498db;
+        }
+        .form-section {
+            max-width: 600px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="header">🛠️ Aesthetic Machine Problem Monitor</h1>
 
-st.set_page_config(page_title="Aesthetic Machine Problem Monitor", page_icon="🛠️", layout="wide")
+        <div class="section">
+            <h2>KPIs</h2>
+            <div class="kpi" id="kpis"></div>
+        </div>
 
-# ------------------ Init DB ------------------
-DB_FILE = "app.db"
+        <div class="section">
+            <h2>Machine Problems</h2>
+            <table id="machine-table"></table>
+        </div>
 
-def init_db():
-    first = not os.path.exists(DB_FILE)
-    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
-    cur = conn.cursor()
-    cur.executescript("""
-    CREATE TABLE IF NOT EXISTS machines (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        customer TEXT NOT NULL,
-        machine_name TEXT NOT NULL,
-        status TEXT CHECK(status IN ('Running','Down')) NOT NULL DEFAULT 'Down',
-        reported_date TEXT NOT NULL,
-        pic TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS updates (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        machine_id INTEGER NOT NULL,
-        ts TEXT NOT NULL,
-        author TEXT NOT NULL,
-        message TEXT NOT NULL,
-        FOREIGN KEY(machine_id) REFERENCES machines(id) ON DELETE CASCADE
-    );
-    """)
-    if first:
-        now = datetime.now()
-        machines = [
-            ("Klinik Aura", "Lutronic Spectra XT", "Down", (now.replace(microsecond=0)).isoformat(), "Rully Candra"),
-            ("RS BIH Sanur", "Cynosure Revlite", "Running", (now.replace(microsecond=0)).isoformat(), "Muhammad Lukmansyah"),
-            ("Klinik Everglow", "Lumenis M22", "Down", (now.replace(microsecond=0)).isoformat(), "Denny Firmansyah"),
-        ]
-        cur.executemany("INSERT INTO machines(customer,machine_name,status,reported_date,pic) VALUES (?,?,?,?,?)", machines)
-        conn.commit()
-    return conn
+        <div class="section">
+            <h2>Problem Updates</h2>
+            <select id="machine-select"></select>
+            <div id="updates"></div>
+        </div>
 
-conn = init_db()
+        <div class="section form-section">
+            <h2>Add New Machine</h2>
+            <form id="add-machine-form">
+                <input type="text" id="customer" placeholder="Customer" required>
+                <input type="text" id="machine-name" placeholder="Machine Name" required>
+                <select id="status">
+                    <option value="Down">Down</option>
+                    <option value="Running">Running</option>
+                </select>
+                <input type="text" id="pic" placeholder="PIC" required>
+                <textarea id="init-note" placeholder="Initial Problem Note" required></textarea>
+                <button type="submit">Create</button>
+            </form>
+        </div>
 
-# ------------------ Helpers ------------------
-def query_df(q, params=()):
-    return pd.read_sql_query(q, conn, params=params)
+        <div class="section form-section">
+            <h2>Add Update</h2>
+            <form id="add-update-form">
+                <select id="update-machine-select"></select>
+                <input type="text" id="author" placeholder="Your Name" required>
+                <textarea id="message" placeholder="Update Message" required></textarea>
+                <select id="new-status">
+                    <option value="">No change</option>
+                    <option value="Running">Running</option>
+                    <option value="Down">Down</option>
+                </select>
+                <button type="submit">Add Update</button>
+            </form>
+        </div>
+    </div>
 
-def exec_sql(q, params=()):
-    cur = conn.cursor()
-    cur.execute(q, params)
-    conn.commit()
-    return cur.lastrowid
+    <script>
+        // Sample data (simulates DB)
+        if (!localStorage.getItem('machines')) {
+            const machines = [
+                { id: 1, customer: 'Klinik Aura', machine_name: 'Lutronic Spectra XT', status: 'Down', reported_date: '2023-10-01T10:00:00', pic: 'Rully Candra', updates: [] },
+                { id: 2, customer: 'RS BIH Sanur', machine_name: 'Cynosure Revlite', status: 'Running', reported_date: '2023-10-02T11:00:00', pic: 'Muhammad Lukmansyah', updates: [] },
+                { id: 3, customer: 'Klinik Everglow', machine_name: 'Lumenis M22', status: 'Down', reported_date: '2023-10-03T12:00:00', pic: 'Denny Firmansyah', updates: [] },
+            ];
+            localStorage.setItem('machines', JSON.stringify(machines));
+        }
 
-def calc_aging_days(reported_iso):
-    try:
-        dt_obj = datetime.fromisoformat(reported_iso)
-        delta = datetime.now() - dt_obj
-        return round(delta.total_seconds() / 86400, 1)
-    except:
-        return None
+        function loadMachines() {
+            return JSON.parse(localStorage.getItem('machines') || '[]');
+        }
 
-def human_ts(ts_iso):
-    try:
-        return datetime.fromisoformat(ts_iso).strftime("%d %b %Y, %H:%M")
-    except:
-        return ts_iso
+        function saveMachines(machines) {
+            localStorage.setItem('machines', JSON.stringify(machines));
+        }
 
-# ------------------ UI ------------------
-st.title("🛠️ Aesthetic Machine Problem Monitor")
+        function calcAgingDays(reportedDate) {
+            const now = new Date();
+            const reported = new Date(reportedDate);
+            const diff = now - reported;
+            return (diff / (1000 * 60 * 60 * 24)).toFixed(1);
+        }
 
-machines_df = query_df("SELECT * FROM machines")
-machines_df["aging_days"] = machines_df["reported_date"].apply(calc_aging_days)
+        function humanTs(ts) {
+            const date = new Date(ts);
+            return date.toLocaleString();
+        }
 
-# KPI
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Down", (machines_df["status"]=="Down").sum())
-col2.metric("Total Running", (machines_df["status"]=="Running").sum())
-col3.metric("Avg Aging (days)", round(machines_df["aging_days"].mean(),1) if not machines_df.empty else 0)
-col4.metric("Oldest Case (days)", int(machines_df["aging_days"].max()) if not machines_df.empty else 0)
+        function renderKPIs(machines) {
+            const totalDown = machines.filter(m => m.status === 'Down').length;
+            const totalRunning = machines.filter(m => m.status === 'Running').length;
+            const agingDays = machines.map(m => parseFloat(calcAgingDays(m.reported_date)));
+            const avgAging = agingDays.length ? (agingDays.reduce((a, b) => a + b, 0) / agingDays.length).toFixed(1) : 0;
+            const oldest = agingDays.length ? Math.max(...agingDays).toFixed(1) : 0;
+            
+            const kpis = `
+                <div class='metric red'>Total Down: ${totalDown}</div>
+                <div class='metric green'>Total Running: ${totalRunning}</div>
+                <div class='metric'>Avg Aging (days): ${avgAging}</div>
+                <div class='metric'>Oldest Case (days): ${oldest}</div>
+            `;
+            document.getElementById('kpis').innerHTML = kpis;
+        }
 
-# Tabel Mesin
-st.subheader("📋 Machine Problems")
-st.dataframe(machines_df[["id","customer","machine_name","status","reported_date","aging_days","pic"]])
+        function renderTable(machines) {
+            let html = `
+                <tr>
+                    <th>ID</th>
+                    <th>Customer</th>
+                    <th>Machine Name</th>
+                    <th>Status</th>
+                    <th>Reported Date</th>
+                    <th>Aging Days</th>
+                    <th>PIC</th>
+                </tr>
+            `;
+            machines.forEach(m => {
+                const aging = calcAgingDays(m.reported_date);
+                const classStatus = m.status === 'Running' ? 'running' : 'down';
+                html += `
+                    <tr class='${classStatus}'>
+                        <td>${m.id}</td>
+                        <td>${m.customer}</td>
+                        <td>${m.machine_name}</td>
+                        <td>${m.status}</td>
+                        <td>${humanTs(m.reported_date)}</td>
+                        <td>${aging}</td>
+                        <td>${m.pic}</td>
+                    </tr>
+                `;
+            });
+            document.getElementById('machine-table').innerHTML = html;
+        }
 
-# Chat-style updates
-st.subheader("💬 Problem Updates")
-machine_ids = machines_df["id"].tolist()
-selected_id = st.selectbox("Select machine", machine_ids if machine_ids else [])
-if selected_id:
-    updates_df = query_df("SELECT * FROM updates WHERE machine_id=? ORDER BY ts ASC", (selected_id,))
-    if updates_df.empty:
-        st.info("No updates yet.")
-    else:
-        for _, u in updates_df.iterrows():
-            st.markdown(f"**{u['author']}** ({human_ts(u['ts'])}): {u['message']}")
+        function renderSelect(machines) {
+            let html = '<option value="">Select machine</option>';
+            machines.forEach(m => {
+                html += `<option value="${m.id}">${m.machine_name} (${m.customer})</option>`;
+            });
+            document.getElementById('machine-select').innerHTML = html;
+            document.getElementById('update-machine-select').innerHTML = html;
+        }
 
-# Add Machine
-st.subheader("➕ Add New Machine")
-with st.form("add_machine"):
-    customer = st.text_input("Customer")
-    machine_name = st.text_input("Machine Name")
-    status = st.selectbox("Status", ["Down","Running"])
-    pic = st.text_input("PIC")
-    note = st.text_area("Initial Problem Note")
-    submitted = st.form_submit_button("Create")
-    if submitted and all([customer,machine_name,status,pic,note]):
-        now = datetime.now().isoformat()
-        rid = exec_sql("INSERT INTO machines(customer,machine_name,status,reported_date,pic) VALUES (?,?,?,?,?)",
-                       (customer,machine_name,status,now,pic))
-        exec_sql("INSERT INTO updates(machine_id,ts,author,message) VALUES (?,?,?,?)",
-                 (rid, now, pic, note))
-        st.success("Machine added with first note.")
-        st.experimental_rerun()
+        function renderUpdates(machineId) {
+            const machines = loadMachines();
+            const machine = machines.find(m => m.id == machineId);
+            let html = '';
+            if (!machine || !machine.updates.length) {
+                html = '<p>No updates yet.</p>';
+            } else {
+                machine.updates.forEach(u => {
+                    html += `
+                        <div class="chat-msg">
+                            <span class="chat-author">${u.author}</span>
+                            <span class="chat-time">(${humanTs(u.ts)})</span>: ${u.message}
+                        </div>
+                    `;
+                });
+            }
+            document.getElementById('updates').innerHTML = html;
+        }
 
-# Add Update
-st.subheader("📝 Add Update")
-with st.form("add_update"):
-    up_id = st.selectbox("Machine ID", machine_ids)
-    author = st.text_input("Your Name")
-    msg = st.text_area("Update Message")
-    new_status = st.selectbox("Change Status?", ["No change","Running","Down"])
-    submitted2 = st.form_submit_button("Add Update")
-    if submitted2 and all([up_id,author,msg]):
-        now = datetime.now().isoformat()
-        exec_sql("INSERT INTO updates(machine_id,ts,author,message) VALUES (?,?,?,?)",(up_id,now,author,msg))
-        if new_status in ("Running","Down"):
-            exec_sql("UPDATE machines SET status=?, pic=? WHERE id=?",(new_status,author,up_id))
-        st.success("Update added.")
-        st.experimental_rerun()
+        // Event listeners
+        document.getElementById('machine-select').addEventListener('change', (e) => {
+            renderUpdates(e.target.value);
+        });
+
+        document.getElementById('add-machine-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const machines = loadMachines();
+            const newId = Math.max(...machines.map(m => m.id), 0) + 1;
+            const now = new Date().toISOString();
+            const newMachine = {
+                id: newId,
+                customer: document.getElementById('customer').value,
+                machine_name: document.getElementById('machine-name').value,
+                status: document.getElementById('status').value,
+                reported_date: now,
+                pic: document.getElementById('pic').value,
+                updates: [{
+                    ts: now,
+                    author: document.getElementById('pic').value,
+                    message: document.getElementById('init-note').value
+                }]
+            };
+            machines.push(newMachine);
+            saveMachines(machines);
+            renderData();
+            e.target.reset();
+            alert('Machine added!');
+        });
+
+        document.getElementById('add-update-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const machines = loadMachines();
+            const machineId = document.getElementById('update-machine-select').value;
+            const machine = machines.find(m => m.id == machineId);
+            if (machine) {
+                const now = new Date().toISOString();
+                const update = {
+                    ts: now,
+                    author: document.getElementById('author').value,
+                    message: document.getElementById('message').value
+                };
+                machine.updates.push(update);
+                const newStatus = document.getElementById('new-status').value;
+                if (newStatus) {
+                    machine.status = newStatus;
+                }
+                saveMachines(machines);
+                renderData();
+                renderUpdates(machineId);
+                e.target.reset();
+                alert('Update added!');
+            }
+        });
+
+        function renderData() {
+            const machines = loadMachines();
+            renderKPIs(machines);
+            renderTable(machines);
+            renderSelect(machines);
+        }
+
+        // Initial render
+        renderData();
+    </script>
+</body>
+</html>
+</content>
+</create_file>
