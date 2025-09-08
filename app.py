@@ -135,7 +135,7 @@ HTML = r"""<!DOCTYPE html>
         <input id="admin-pin" type="password" placeholder="4-digit PIN" />
         <button class="btn" id="admin-login-btn">Login</button>
       </div>
-      <div class="small muted-plain">Default PIN: 0101</div>
+      <div class="small muted-plain"></div>
     </div>
   </div>
 
