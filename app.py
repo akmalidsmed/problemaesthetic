@@ -1,9 +1,4 @@
-import streamlit as st
-from streamlit.components.v1 import html as st_html
-
-st.set_page_config(page_title="Report Problem Aesthetic", layout="wide")
-
-HTML = r"""<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
@@ -13,9 +8,9 @@ HTML = r"""<!DOCTYPE html>
   <!-- SheetJS for Excel export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
-    :root { --primary: #1e40af; --accent: #2563eb; --bg1: linear-gradient(135deg,#e0e7ff,#c7d2fe); }
+    :root { --primary: #1e40af; --accent: #2563eb; --bg1: linear-gradient(135deg,#f1f5f9,#e2e8f0); }
     body {
-      margin:0; padding:28px; min-height:100vh;
+      margin:0; padding:20px; min-height:100vh;
       font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       background: var(--bg1);
       color: #0f172a;
@@ -24,80 +19,82 @@ HTML = r"""<!DOCTYPE html>
     h1.app-title {
       font-weight: 900;
       color: var(--primary);
-      font-size: 4rem; /* very large */
+      font-size: 3rem;
       text-align: center;
-      margin: 6px 0 20px 0;
+      margin: 0 0 15px 0;
       letter-spacing: -1px;
       text-shadow: 2px 2px 8px rgba(0,0,0,0.08);
     }
-    .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:15px; flex-wrap:wrap; }
     .admin-status { font-weight:800; color:#0f172a; display:flex; gap:10px; align-items:center; }
-    .admin-pill { padding:8px 12px; border-radius:999px; background:#fde68a; color:#92400e; font-weight:800; box-shadow:0 6px 18px rgba(250,204,21,0.12); }
-    .controls { display:flex; gap:10px; align-items:center; }
-    .btn { background:var(--accent); color:white; border:none; padding:10px 14px; border-radius:10px; font-weight:800; cursor:pointer; box-shadow:0 10px 24px rgba(37,99,235,0.12); }
+    .admin-pill { padding:6px 12px; border-radius:999px; background:#fde68a; color:#92400e; font-weight:800; box-shadow:0 4px 12px rgba(250,204,21,0.12); }
+    .controls { display:flex; gap:8px; align-items:center; }
+    .btn { background:var(--accent); color:white; border:none; padding:8px 12px; border-radius:8px; font-weight:800; cursor:pointer; box-shadow:0 6px 18px rgba(37,99,235,0.12); }
     .btn.secondary { background:white; color:var(--accent); border:2px solid rgba(37,99,235,0.12); box-shadow:none; }
-    .btn.ghost { background:transparent; color:var(--accent); border:none; text-decoration:underline; padding:6px; font-weight:700; }
-    .btn.success { background:#059669; color:white; box-shadow:0 10px 24px rgba(5,150,105,0.12); }
+    .btn.ghost { background:transparent; color:var(--accent); border:none; text-decoration:underline; padding:4px; font-weight:700; }
+    .btn.success { background:#059669; color:white; box-shadow:0 6px 18px rgba(5,150,105,0.12); }
 
-    .summary { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-bottom:18px; }
-    .kpi { width:180px; height:120px; border-radius:14px; display:flex; flex-direction:column; justify-content:center; align-items:center; color:white; font-weight:800; cursor:pointer; user-select:none; transition:transform .12s ease, box-shadow .12s ease; }
-    .kpi:hover { transform:translateY(-6px); }
-    .kpi .label { font-size:0.95rem; opacity:0.95; }
-    .kpi .value { font-size:2rem; margin-top:6px; }
+    .summary { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:15px; }
+    .kpi { width:160px; height:100px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; color:white; font-weight:800; cursor:pointer; user-select:none; transition:transform .12s ease, box-shadow .12s ease; }
+    .kpi:hover { transform:translateY(-4px); }
+    .kpi .label { font-size:0.9rem; opacity:0.95; }
+    .kpi .value { font-size:1.8rem; margin-top:4px; }
 
     .kpi.all { background: linear-gradient(45deg,#475569,#334155); }
     .kpi.down { background: linear-gradient(45deg,#dc2626,#b91c1c); }
     .kpi.running { background: linear-gradient(45deg,#059669,#10b981); }
+    .kpi.solved { background: linear-gradient(45deg,#7c3aed,#6d28d9); }
+    .kpi.hold { background: linear-gradient(45deg,#ea580c,#c2410c); }
 
-    .table-wrapper { background:#ffffffdd; padding:10px; border-radius:12px; box-shadow:0 10px 40px rgba(2,6,23,0.06); overflow-x:auto; }
-    table { width:100%; border-collapse: separate; border-spacing:0 10px; min-width:800px; }
-    th { background:var(--accent); color:white; padding:12px 14px; text-align:left; font-weight:800; }
-    td { background:white; padding:12px 14px; color:#0f172a; vertical-align:middle; font-weight:700; }
-    tr td { box-shadow:0 6px 18px rgba(2,6,23,0.04); border-radius:8px; }
-    .status-badge { padding:6px 14px; border-radius:999px; color:white; font-weight:900; }
+    .section-title { font-size:1.5rem; font-weight:900; color:var(--primary); margin:20px 0 10px 0; }
+
+    .table-wrapper { background:#ffffffdd; padding:8px; border-radius:10px; box-shadow:0 6px 24px rgba(2,6,23,0.06); overflow-x:auto; margin-bottom:15px; }
+    table { width:100%; border-collapse: separate; border-spacing:0 8px; min-width:800px; }
+    th { background:var(--accent); color:white; padding:10px 12px; text-align:left; font-weight:800; font-size:0.9rem; }
+    td { background:white; padding:10px 12px; color:#0f172a; vertical-align:middle; font-weight:700; font-size:0.9rem; }
+    tr td { box-shadow:0 4px 12px rgba(2,6,23,0.04); border-radius:6px; }
+    .status-badge { padding:4px 12px; border-radius:999px; color:white; font-weight:900; font-size:0.8rem; }
     .status-down { background:#b91c1c; }
     .status-running { background:#059669; }
+    .status-solved { background:#7c3aed; }
+    .status-hold { background:#ea580c; }
 
     .detail-link { background:none; border:none; color:var(--accent); text-decoration:underline; font-weight:900; cursor:pointer; }
 
     /* modal */
     .modal-overlay { position:fixed; inset:0; background:rgba(2,6,23,0.45); display:none; align-items:center; justify-content:center; z-index:9999; padding:16px; }
     .modal-overlay.active { display:flex; }
-    .modal { width:100%; max-width:880px; background:white; border-radius:12px; padding:18px; max-height:88vh; overflow:auto; box-shadow:0 30px 80px rgba(2,6,23,0.25); position:relative; }
-    .modal h2 { font-size:1.6rem; color:var(--primary); margin:0 0 12px 0; font-weight:900; }
-    .modal .row { display:flex; gap:12px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+    .modal { width:100%; max-width:800px; background:white; border-radius:12px; padding:16px; max-height:85vh; overflow:auto; box-shadow:0 30px 80px rgba(2,6,23,0.25); position:relative; }
+    .modal h2 { font-size:1.4rem; color:var(--primary); margin:0 0 12px 0; font-weight:900; }
+    .modal .row { display:flex; gap:12px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
     .modal label { min-width:120px; font-weight:800; color:var(--accent); }
     .modal input[type="text"], .modal input[type="date"], .modal select, .modal textarea, .modal input[type="password"] {
       flex:1; padding:8px 10px; border:1px solid #e6eef8; border-radius:8px; font-size:1rem;
     }
-    .modal textarea { min-height:90px; resize:vertical; }
+    .modal textarea { min-height:80px; resize:vertical; }
     .modal .muted { font-weight:700; color:#475569; }
-    .modal .small { font-size:0.95rem; color:#475569; }
+    .modal .small { font-size:0.9rem; color:#475569; }
 
-    .update-item { background:#f1f9ff; padding:10px 12px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; gap:8px; align-items:center; }
+    .update-item { background:#f1f9ff; padding:8px 10px; border-radius:8px; margin-bottom:6px; display:flex; justify-content:space-between; gap:8px; align-items:center; }
     .update-left { font-weight:800; color:#0f172a; }
-    .update-meta { font-size:0.9rem; color:#2563eb; font-weight:900; margin-bottom:6px; }
+    .update-meta { font-size:0.8rem; color:#2563eb; font-weight:900; margin-bottom:4px; }
 
-    .danger { background:#fecaca; color:#7f1d1d; border-radius:8px; padding:8px 10px; font-weight:900; border:none; cursor:pointer; }
+    .danger { background:#fecaca; color:#7f1d1d; border-radius:6px; padding:6px 8px; font-weight:900; border:none; cursor:pointer; font-size:0.8rem; }
     .muted-plain { color:#475569; font-weight:800; }
 
     @media (max-width:720px) {
-      h1.app-title { font-size:3rem; }
-      .kpi { width:46%; }
+      h1.app-title { font-size:2.5rem; }
+      .kpi { width:45%; height:90px; }
+      .kpi .value { font-size:1.5rem; }
+      body { padding:15px; }
     }
   </style>
 </head>
 <body>
 
-
   <div class="wrap">
     <h1 class="app-title">Report Problem Aesthetic</h1>
-      </div>
-
-    <div class="summary" id="summary" role="tablist" aria-label="summary filters"></div>
-
-  <div class="wrap">
-
+    
     <div class="topbar">
       <div class="admin-status" id="admin-status">
         <!-- Admin pill will be inserted here -->
@@ -110,9 +107,17 @@ HTML = r"""<!DOCTYPE html>
         <button class="btn ghost" id="clear-data-btn"></button>
       </div>
     </div>
-    
+
+    <div class="summary" id="summary" role="tablist" aria-label="summary filters"></div>
+
+    <div class="section-title">Active Problems</div>
     <div class="table-wrapper" aria-live="polite">
       <table id="machine-table" role="table"></table>
+    </div>
+
+    <div class="section-title">Solved Problems</div>
+    <div class="table-wrapper" aria-live="polite">
+      <table id="solved-table" role="table"></table>
     </div>
   </div>
 
@@ -127,7 +132,7 @@ HTML = r"""<!DOCTYPE html>
         <input id="admin-pin" type="password" placeholder="4-digit PIN" />
         <button class="btn" id="admin-login-btn">Login</button>
       </div>
-      <div class="small muted-plain"><strongstrong></div>
+      <div class="small muted-plain">Default PIN: 0101</div>
     </div>
   </div>
 
@@ -139,8 +144,9 @@ HTML = r"""<!DOCTYPE html>
       <div id="form-body">
         <div class="row"><label>Customer</label><input id="f-customer" type="text" /></div>
         <div class="row"><label>Unit</label><input id="f-unit" type="text" /></div>
-        <div class="row"><label>Status</label><select id="f-status"><option>Down</option><option>Running</option></select></div>
+        <div class="row"><label>Status</label><select id="f-status"><option>Down</option><option>Hold by Customer</option><option>Running</option><option>Solved</option></select></div>
         <div class="row"><label>Reported Date</label><input id="f-date" type="date" /></div>
+        <div class="row"><label>Solved Date</label><input id="f-solved-date" type="date" /></div>
         <div class="row"><label>PIC</label><input id="f-pic" type="text" /></div>
         <div class="row"><label>Initial Update</label><textarea id="f-initial" placeholder="Optional initial update"></textarea></div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px;">
@@ -164,12 +170,16 @@ HTML = r"""<!DOCTYPE html>
   // Initialize default data if absent
   if (!localStorage.getItem('machines_demo')) {
     const defaultData = [
-      { id: 1, customer: 'Klinik Aura', machine_name: 'Lutronic Spectra XT', status: 'Down', reported_date: '2023-10-01', pic: 'Rully Candra', updates: [
+      { id: 1, customer: 'Klinik Aura', machine_name: 'Lutronic Spectra XT', status: 'Down', reported_date: '2023-10-01', solved_date: null, pic: 'Rully Candra', updates: [
         { ts: '2023-10-02T09:00:00', author: 'Rully Candra', message: 'Initial report: machine not powering on.' },
         { ts: '2023-10-03T14:30:00', author: 'Technician A', message: 'Checked power supply, replaced fuse.' }
       ]},
-      { id: 2, customer: 'RS BIH Sanur', machine_name: 'Cynosure Revlite', status: 'Running', reported_date: '2023-10-02', pic: 'Muhammad Lukmansyah', updates: [
+      { id: 2, customer: 'RS BIH Sanur', machine_name: 'Cynosure Revlite', status: 'Running', reported_date: '2023-10-02', solved_date: null, pic: 'Muhammad Lukmansyah', updates: [
         { ts: '2023-10-05T09:00:00', author: 'Muhammad Lukmansyah', message: 'Routine check - all OK.' }
+      ]},
+      { id: 3, customer: 'Klinik Estetika Prima', machine_name: 'Candela GentleLase', status: 'Solved', reported_date: '2023-09-20', solved_date: '2023-09-25', pic: 'Ahmad Fauzi', updates: [
+        { ts: '2023-09-21T10:00:00', author: 'Ahmad Fauzi', message: 'Laser not firing properly.' },
+        { ts: '2023-09-25T16:00:00', author: 'Ahmad Fauzi', message: 'Replaced laser module. Machine working normally.' }
       ]}
     ];
     localStorage.setItem('machines_demo', JSON.stringify(defaultData));
@@ -189,9 +199,16 @@ HTML = r"""<!DOCTYPE html>
     if (!isNaN(dt)) return dt.toLocaleDateString();
     return d;
   }
-  function agingDays(date) {
-    const now = new Date(); const rep = new Date(date);
-    const diff = now - rep;
+  function formatUpdateDate(ts) {
+    if(!ts) return '';
+    const dt = new Date(ts);
+    if (!isNaN(dt)) return dt.toLocaleString();
+    return ts;
+  }
+  function agingDays(reportedDate, solvedDate = null) {
+    const endDate = solvedDate ? new Date(solvedDate) : new Date();
+    const startDate = new Date(reportedDate);
+    const diff = endDate - startDate;
     return Math.max(0, Math.floor(diff / (1000*60*60*24)));
   }
 
@@ -206,6 +223,9 @@ HTML = r"""<!DOCTYPE html>
     // Create workbook
     const wb = XLSX.utils.book_new();
     
+    const activeProblems = data.filter(d => d.status !== 'Solved');
+    const solvedProblems = data.filter(d => d.status === 'Solved');
+    
     // Summary Sheet
     const summaryData = [
       ['Machine Problem Report Summary', '', '', ''],
@@ -214,53 +234,87 @@ HTML = r"""<!DOCTYPE html>
       ['Category', 'Count', 'Percentage', ''],
       ['Total Problems', data.length, '100%', ''],
       ['Down Machines', data.filter(d => d.status === 'Down').length, `${((data.filter(d => d.status === 'Down').length / data.length) * 100).toFixed(1)}%`, ''],
+      ['Hold by Customer', data.filter(d => d.status === 'Hold by Customer').length, `${((data.filter(d => d.status === 'Hold by Customer').length / data.length) * 100).toFixed(1)}%`, ''],
       ['Running Machines', data.filter(d => d.status === 'Running').length, `${((data.filter(d => d.status === 'Running').length / data.length) * 100).toFixed(1)}%`, ''],
+      ['Solved Machines', solvedProblems.length, `${((solvedProblems.length / data.length) * 100).toFixed(1)}%`, ''],
     ];
     const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
     
-    // Style summary sheet
-    summaryWs['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }
-    ];
+    summaryWs['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
     XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
 
-    // Main Data Sheet
-    const mainData = [
-      ['ID', 'Customer', 'Machine/Unit', 'Status', 'Reported Date', 'Aging (Days)', 'PIC', 'Latest Update', 'Total Updates']
-    ];
-    
-    data.forEach(machine => {
-      const latestUpdate = machine.updates && machine.updates.length > 0 ? 
-        machine.updates[machine.updates.length - 1].message : 'No updates yet';
+    // Active Problems Sheet
+    if (activeProblems.length > 0) {
+      const activeData = [
+        ['ID', 'Customer', 'Machine/Unit', 'Status', 'Reported Date', 'Aging (Days)', 'PIC', 'Latest Update', 'Total Updates']
+      ];
       
-      mainData.push([
-        machine.id,
-        machine.customer || '',
-        machine.machine_name || '',
-        machine.status || '',
-        formatDate(machine.reported_date),
-        agingDays(machine.reported_date),
-        machine.pic || '',
-        latestUpdate,
-        machine.updates ? machine.updates.length : 0
-      ]);
-    });
-    
-    const mainWs = XLSX.utils.aoa_to_sheet(mainData);
-    
-    // Auto-size columns
-    const maxWidth = [];
-    mainData.forEach(row => {
-      row.forEach((cell, idx) => {
-        const cellLength = cell ? cell.toString().length : 0;
-        maxWidth[idx] = Math.max(maxWidth[idx] || 0, cellLength);
+      activeProblems.forEach(machine => {
+        const latestUpdate = machine.updates && machine.updates.length > 0 ? 
+          machine.updates[machine.updates.length - 1].message : 'No updates yet';
+        
+        activeData.push([
+          machine.id,
+          machine.customer || '',
+          machine.machine_name || '',
+          machine.status || '',
+          formatDate(machine.reported_date),
+          agingDays(machine.reported_date),
+          machine.pic || '',
+          latestUpdate,
+          machine.updates ? machine.updates.length : 0
+        ]);
       });
-    });
-    
-    mainWs['!cols'] = maxWidth.map(w => ({ width: Math.min(w + 2, 50) }));
-    XLSX.utils.book_append_sheet(wb, mainWs, 'Machine Problems');
+      
+      const activeWs = XLSX.utils.aoa_to_sheet(activeData);
+      const maxWidth = [];
+      activeData.forEach(row => {
+        row.forEach((cell, idx) => {
+          const cellLength = cell ? cell.toString().length : 0;
+          maxWidth[idx] = Math.max(maxWidth[idx] || 0, cellLength);
+        });
+      });
+      
+      activeWs['!cols'] = maxWidth.map(w => ({ width: Math.min(w + 2, 50) }));
+      XLSX.utils.book_append_sheet(wb, activeWs, 'Active Problems');
+    }
 
-    // Updates Detail Sheet
+    // Solved Problems Sheet
+    if (solvedProblems.length > 0) {
+      const solvedData = [
+        ['ID', 'Customer', 'Machine/Unit', 'Reported Date', 'Solved Date', 'Resolution Time (Days)', 'PIC', 'Latest Update']
+      ];
+      
+      solvedProblems.forEach(machine => {
+        const latestUpdate = machine.updates && machine.updates.length > 0 ? 
+          machine.updates[machine.updates.length - 1].message : 'No updates yet';
+        
+        solvedData.push([
+          machine.id,
+          machine.customer || '',
+          machine.machine_name || '',
+          formatDate(machine.reported_date),
+          formatDate(machine.solved_date),
+          agingDays(machine.reported_date, machine.solved_date),
+          machine.pic || '',
+          latestUpdate
+        ]);
+      });
+      
+      const solvedWs = XLSX.utils.aoa_to_sheet(solvedData);
+      const solvedMaxWidth = [];
+      solvedData.forEach(row => {
+        row.forEach((cell, idx) => {
+          const cellLength = cell ? cell.toString().length : 0;
+          solvedMaxWidth[idx] = Math.max(solvedMaxWidth[idx] || 0, cellLength);
+        });
+      });
+      
+      solvedWs['!cols'] = solvedMaxWidth.map(w => ({ width: Math.min(w + 2, 50) }));
+      XLSX.utils.book_append_sheet(wb, solvedWs, 'Solved Problems');
+    }
+
+    // All Updates Sheet
     const updatesData = [
       ['Machine ID', 'Customer', 'Machine/Unit', 'Update Date/Time', 'Author', 'Update Message']
     ];
@@ -281,8 +335,6 @@ HTML = r"""<!DOCTYPE html>
     });
     
     const updatesWs = XLSX.utils.aoa_to_sheet(updatesData);
-    
-    // Auto-size columns for updates sheet
     const updatesMaxWidth = [];
     updatesData.forEach(row => {
       row.forEach((cell, idx) => {
@@ -293,41 +345,6 @@ HTML = r"""<!DOCTYPE html>
     
     updatesWs['!cols'] = updatesMaxWidth.map(w => ({ width: Math.min(w + 2, 60) }));
     XLSX.utils.book_append_sheet(wb, updatesWs, 'All Updates');
-
-    // Down Machines Sheet (filtered)
-    const downMachines = data.filter(d => d.status === 'Down');
-    if (downMachines.length > 0) {
-      const downData = [
-        ['ID', 'Customer', 'Machine/Unit', 'Reported Date', 'Aging (Days)', 'PIC', 'Latest Update']
-      ];
-      
-      downMachines.forEach(machine => {
-        const latestUpdate = machine.updates && machine.updates.length > 0 ? 
-          machine.updates[machine.updates.length - 1].message : 'No updates yet';
-        
-        downData.push([
-          machine.id,
-          machine.customer || '',
-          machine.machine_name || '',
-          formatDate(machine.reported_date),
-          agingDays(machine.reported_date),
-          machine.pic || '',
-          latestUpdate
-        ]);
-      });
-      
-      const downWs = XLSX.utils.aoa_to_sheet(downData);
-      const downMaxWidth = [];
-      downData.forEach(row => {
-        row.forEach((cell, idx) => {
-          const cellLength = cell ? cell.toString().length : 0;
-          downMaxWidth[idx] = Math.max(downMaxWidth[idx] || 0, cellLength);
-        });
-      });
-      
-      downWs['!cols'] = downMaxWidth.map(w => ({ width: Math.min(w + 2, 50) }));
-      XLSX.utils.book_append_sheet(wb, downWs, 'Down Machines');
-    }
 
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
@@ -377,55 +394,103 @@ HTML = r"""<!DOCTYPE html>
     const data = load();
     const total = data.length;
     const down = data.filter(d=>d.status==='Down').length;
+    const hold = data.filter(d=>d.status==='Hold by Customer').length;
     const running = data.filter(d=>d.status==='Running').length;
+    const solved = data.filter(d=>d.status==='Solved').length;
     const el = document.getElementById('summary');
     el.innerHTML = `
       <div class="kpi all" data-key="all" role="button" tabindex="0"><div class="label">Total Problem</div><div class="value">${total}</div></div>
-      <div class="kpi down" data-key="Down" role="button" tabindex="0"><div class="label">Total Down</div><div class="value">${down}</div></div>
-      <div class="kpi running" data-key="Running" role="button" tabindex="0"><div class="label">Total Running</div><div class="value">${running}</div></div>
+      <div class="kpi down" data-key="Down" role="button" tabindex="0"><div class="label">Down</div><div class="value">${down}</div></div>
+      <div class="kpi hold" data-key="Hold by Customer" role="button" tabindex="0"><div class="label">Hold Customer</div><div class="value">${hold}</div></div>
+      <div class="kpi running" data-key="Running" role="button" tabindex="0"><div class="label">Running</div><div class="value">${running}</div></div>
+      <div class="kpi solved" data-key="Solved" role="button" tabindex="0"><div class="label">Solved</div><div class="value">${solved}</div></div>
     `;
     el.querySelectorAll('.kpi').forEach(k=>{
       k.addEventListener('click', ()=> {
         const key = k.dataset.key;
         if (currentFilter === key) currentFilter = 'all'; else currentFilter = key;
-        renderTable();
+        renderTables();
       });
     });
   }
 
-  // Table (History column shows last update message)
-function renderTable() {
-  const data = load();
-  let list = data;
-  if (currentFilter === 'Down') list = data.filter(x=>x.status==='Down');
-  else if (currentFilter === 'Running') list = data.filter(x=>x.status==='Running');
+  // Render both tables
+  function renderTables() {
+    renderActiveTable();
+    renderSolvedTable();
+  }
 
-  const table = document.getElementById('machine-table');
-  let html = `<tr><th>ID</th><th>Customer</th><th>Unit</th><th>Status</th><th>Aging (days)</th><th>Action Plan</th><th>History</th></tr>`;
-  if (list.length === 0) {
-    html += `<tr><td colspan="7" class="small muted-plain" style="padding:24px;text-align:center">No machines found.</td></tr>`;
-  } else {
-    list.forEach(m => {
-      const last = (m.updates && m.updates.length) ? m.updates[m.updates.length-1].message : 'No updates yet';
-      html += `<tr>
-        <td>${m.id}</td>
-        <td>${escapeHtml(m.customer)}</td>
-        <td>${escapeHtml(m.machine_name)}</td>
-        <td><span class="status-badge ${m.status==='Down'?'status-down':'status-running'}">${m.status}</span></td>
-        <td>${agingDays(m.reported_date)}</td>
-        <td>${escapeHtml(last)}</td>
-        <td><button class="detail-link" data-id="${m.id}">Click Here</button></td>
-      </tr>`;
+  // Active Problems Table (excludes Solved)
+  function renderActiveTable() {
+    const data = load();
+    let list = data.filter(x => x.status !== 'Solved');
+    if (currentFilter !== 'all' && currentFilter !== 'Solved') {
+      list = list.filter(x => x.status === currentFilter);
+    }
+
+    const table = document.getElementById('machine-table');
+    let html = `<tr><th>ID</th><th>Customer</th><th>Unit</th><th>Status</th><th>Aging (days)</th><th>Action Plan</th><th>History</th></tr>`;
+    if (list.length === 0) {
+      html += `<tr><td colspan="7" class="small muted-plain" style="padding:20px;text-align:center">No active problems found.</td></tr>`;
+    } else {
+      list.forEach(m => {
+        const last = (m.updates && m.updates.length) ? m.updates[m.updates.length-1].message : 'No updates yet';
+        const statusClass = m.status === 'Down' ? 'status-down' : 
+                           m.status === 'Hold by Customer' ? 'status-hold' : 'status-running';
+        html += `<tr>
+          <td>${m.id}</td>
+          <td>${escapeHtml(m.customer)}</td>
+          <td>${escapeHtml(m.machine_name)}</td>
+          <td><span class="status-badge ${statusClass}">${m.status}</span></td>
+          <td>${agingDays(m.reported_date)}</td>
+          <td>${escapeHtml(last)}</td>
+          <td><button class="detail-link" data-id="${m.id}">Click Here</button></td>
+        </tr>`;
+      });
+    }
+    table.innerHTML = html;
+
+    // Attach detail handlers
+    table.querySelectorAll('.detail-link').forEach(btn => {
+      btn.addEventListener('click', ()=> openDetail(btn.dataset.id));
     });
   }
-  table.innerHTML = html;
 
-  // Attach detail handlers
-  table.querySelectorAll('.detail-link').forEach(btn => {
-    btn.addEventListener('click', ()=> openDetail(btn.dataset.id));
-  });
-}
+  // Solved Problems Table
+  function renderSolvedTable() {
+    const data = load();
+    let list = data.filter(x => x.status === 'Solved');
+    if (currentFilter === 'Solved') {
+      // Show only solved when filter is active
+    } else if (currentFilter !== 'all') {
+      list = []; // Hide solved table when filtering by other statuses
+    }
 
+    const table = document.getElementById('solved-table');
+    let html = `<tr><th>ID</th><th>Customer</th><th>Unit</th><th>Status</th><th>Resolution Time (days)</th><th>Solved Date</th><th>History</th></tr>`;
+    if (list.length === 0) {
+      html += `<tr><td colspan="7" class="small muted-plain" style="padding:20px;text-align:center">No solved problems found.</td></tr>`;
+    } else {
+      list.forEach(m => {
+        const resolutionTime = agingDays(m.reported_date, m.solved_date);
+        html += `<tr>
+          <td>${m.id}</td>
+          <td>${escapeHtml(m.customer)}</td>
+          <td>${escapeHtml(m.machine_name)}</td>
+          <td><span class="status-badge status-solved">${m.status}</span></td>
+          <td>${resolutionTime}</td>
+          <td>${formatDate(m.solved_date)}</td>
+          <td><button class="detail-link" data-id="${m.id}">Click Here</button></td>
+        </tr>`;
+      });
+    }
+    table.innerHTML = html;
+
+    // Attach detail handlers
+    table.querySelectorAll('.detail-link').forEach(btn => {
+      btn.addEventListener('click', ()=> openDetail(btn.dataset.id));
+    });
+  }
 
   // Escape HTML
   function escapeHtml(s) {
@@ -433,7 +498,7 @@ function renderTable() {
     return s.toString().replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   }
 
-  // Open Detail Modal: show full info + admin controls (edit/add update/delete) when isAdmin
+  // Open Detail Modal
   function openDetail(id) {
     const data = load();
     const m = data.find(x=>x.id == id);
@@ -445,7 +510,9 @@ function renderTable() {
       <div class="row"><label>Unit</label><div class="muted-plain">${escapeHtml(m.machine_name)}</div></div>
       <div class="row"><label>Status</label><div class="muted-plain">${m.status}</div></div>
       <div class="row"><label>Reported Date</label><div class="muted-plain">${formatDate(m.reported_date)}</div></div>
+      ${m.solved_date ? `<div class="row"><label>Solved Date</label><div class="muted-plain">${formatDate(m.solved_date)}</div></div>` : ''}
       <div class="row"><label>PIC</label><div class="muted-plain">${escapeHtml(m.pic)}</div></div>
+      ${m.status === 'Solved' ? `<div class="row"><label>Resolution Time</label><div class="muted-plain">${agingDays(m.reported_date, m.solved_date)} days</div></div>` : `<div class="row"><label>Aging</label><div class="muted-plain">${agingDays(m.reported_date)} days</div></div>`}
       <hr style="margin:12px 0;border:none;border-top:1px solid #eef4ff" />
       <h3 class="small">History (all updates)</h3>
       <div id="updates-list">`;
@@ -455,11 +522,11 @@ function renderTable() {
         const origIndex = m.updates.length - 1 - idx;
         html += `<div class="update-item">
           <div>
-            <div class="update-meta">${escapeHtml(u.author)} • ${escapeHtml(u.ts)}</div>
+            <div class="update-meta">${escapeHtml(u.author)} • ${formatUpdateDate(u.ts)}</div>
             <div class="update-left">${escapeHtml(u.message)}</div>
           </div>
-          ${isAdmin() ? `<div style="display:flex;flex-direction:column;gap:8px;">
-            <button class="btn secondary" data-action="edit-update" data-idx="${origIndex}" data-id="${m.id}">✏️</button>
+          ${isAdmin() ? `<div style="display:flex;flex-direction:column;gap:4px;">
+            <button class="btn secondary" data-action="edit-update" data-idx="${origIndex}" data-id="${m.id}" style="padding:4px 6px;font-size:0.8rem;">✏️</button>
             <button class="danger" data-action="del-update" data-idx="${origIndex}" data-id="${m.id}">🗑️</button>
           </div>` : ''}
         </div>`;
@@ -523,13 +590,31 @@ function renderTable() {
     const unit = document.getElementById('f-unit');
     const status = document.getElementById('f-status');
     const date = document.getElementById('f-date');
+    const solvedDate = document.getElementById('f-solved-date');
     const pic = document.getElementById('f-pic');
     const initial = document.getElementById('f-initial');
+
+    // Show/hide solved date based on status
+    function toggleSolvedDate() {
+      const row = solvedDate.closest('.row');
+      if (status.value === 'Solved') {
+        row.style.display = 'flex';
+        if (!solvedDate.value) {
+          solvedDate.value = new Date().toISOString().slice(0,10);
+        }
+      } else {
+        row.style.display = 'none';
+        solvedDate.value = '';
+      }
+    }
+
+    status.addEventListener('change', toggleSolvedDate);
 
     if (mode === 'add') {
       title.textContent = 'Add Problem';
       cust.value=''; unit.value=''; status.value='Down';
       date.value = new Date().toISOString().slice(0,10);
+      solvedDate.value = '';
       pic.value=''; initial.value='';
       modal.dataset.mode='add'; modal.dataset.id='';
     } else {
@@ -544,14 +629,27 @@ function renderTable() {
       const dt = new Date(d);
       if (!isNaN(dt)) d = dt.toISOString().slice(0,10);
       date.value = d;
+      
+      // Set solved date if exists
+      if (m.solved_date) {
+        let sd = m.solved_date;
+        const sdt = new Date(sd);
+        if (!isNaN(sdt)) sd = sdt.toISOString().slice(0,10);
+        solvedDate.value = sd;
+      } else {
+        solvedDate.value = '';
+      }
+      
       pic.value = m.pic || '';
       initial.value = '';
       modal.dataset.mode='edit'; modal.dataset.id = m.id;
     }
+    
+    toggleSolvedDate();
   }
 
   // Close modals
-  document.getElementById('admin-close').addEventListener('click', ()=> { adminModal.classList.remove('active'); adminPinInput.value=''; });
+  adminClose.addEventListener('click', ()=> { adminModal.classList.remove('active'); adminPinInput.value=''; });
   problemClose.addEventListener('click', ()=> problemModal.classList.remove('active'));
   formCancel.addEventListener('click', ()=> problemModal.classList.remove('active'));
   detailClose.addEventListener('click', ()=> detailModal.classList.remove('active'));
@@ -594,15 +692,30 @@ function renderTable() {
     const unit = document.getElementById('f-unit').value.trim();
     const status = document.getElementById('f-status').value;
     const date = document.getElementById('f-date').value;
+    const solvedDate = document.getElementById('f-solved-date').value;
     const pic = document.getElementById('f-pic').value.trim() || 'Unknown';
     const initial = document.getElementById('f-initial').value.trim();
 
     if (!cust || !unit || !date) { alert('Lengkapi Customer, Unit, dan Reported Date'); return; }
+    
+    if (status === 'Solved' && !solvedDate) {
+      alert('Solved Date diperlukan untuk status Solved');
+      return;
+    }
 
     const arr = load();
     if (mode === 'add') {
       const newId = uid();
-      const newRec = { id: newId, customer: cust, machine_name: unit, status: status, reported_date: date, pic: pic, updates: [] };
+      const newRec = { 
+        id: newId, 
+        customer: cust, 
+        machine_name: unit, 
+        status: status, 
+        reported_date: date, 
+        solved_date: status === 'Solved' ? solvedDate : null,
+        pic: pic, 
+        updates: [] 
+      };
       if (initial) newRec.updates.push({ ts: new Date().toISOString(), author: pic, message: initial });
       arr.push(newRec);
       save(arr);
@@ -616,6 +729,7 @@ function renderTable() {
       arr[idx].machine_name = unit;
       arr[idx].status = status;
       arr[idx].reported_date = date;
+      arr[idx].solved_date = status === 'Solved' ? solvedDate : null;
       arr[idx].pic = pic;
       if (initial) arr[idx].updates.push({ ts: new Date().toISOString(), author: pic, message: initial });
       save(arr);
@@ -707,7 +821,7 @@ function renderTable() {
   function renderAll() {
     renderAdminStatus();
     renderSummary();
-    renderTable();
+    renderTables();
   }
 
   // wire detail modal close on overlay click / Esc
@@ -727,6 +841,3 @@ function renderTable() {
 </script>
 </body>
 </html>
-"""
-
-st_html(HTML, height=1300, scrolling=True)
