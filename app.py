@@ -239,37 +239,38 @@ HTML = r"""<!DOCTYPE html>
   }
 
   // Table (History column shows last update message)
-  function renderTable() {
-    const data = load();
-    let list = data;
-    if (currentFilter === 'Down') list = data.filter(x=>x.status==='Down');
-    else if (currentFilter === 'Running') list = data.filter(x=>x.status==='Running');
+function renderTable() {
+  const data = load();
+  let list = data;
+  if (currentFilter === 'Down') list = data.filter(x=>x.status==='Down');
+  else if (currentFilter === 'Running') list = data.filter(x=>x.status==='Running');
 
-    const table = document.getElementById('machine-table');
-    let html = `<tr><th>ID</th><th>Customer</th><th>Unit</th><th>Status</th><th>Aging (days)</th><th>History</th><th>Details</th></tr>`;
-    if (list.length === 0) {
-      html += `<tr><td colspan="7" class="small muted-plain" style="padding:24px;text-align:center">No machines found.</td></tr>`;
-    } else {
-      list.forEach(m => {
-        const last = (m.updates && m.updates.length) ? m.updates[m.updates.length-1].message : 'No updates yet';
-        html += `<tr>
-          <td>${m.id}</td>
-          <td>${escapeHtml(m.customer)}</td>
-          <td>${escapeHtml(m.machine_name)}</td>
-          <td><span class="status-badge ${m.status==='Down'?'status-down':'status-running'}">${m.status}</span></td>
-          <td>${agingDays(m.reported_date)}</td>
-          <td>${escapeHtml(last)}</td>
-          <td><button class="detail-link" data-id="${m.id}">Detail</button></td>
-        </tr>`;
-      });
-    }
-    table.innerHTML = html;
-
-    // Attach detail handlers
-    table.querySelectorAll('.detail-link').forEach(btn => {
-      btn.addEventListener('click', ()=> openDetail(btn.dataset.id));
+  const table = document.getElementById('machine-table');
+  let html = `<tr><th>ID</th><th>Customer</th><th>Unit</th><th>Status</th><th>Aging (days)</th><th>Action Plan</th><th>History</th></tr>`;
+  if (list.length === 0) {
+    html += `<tr><td colspan="7" class="small muted-plain" style="padding:24px;text-align:center">No machines found.</td></tr>`;
+  } else {
+    list.forEach(m => {
+      const last = (m.updates && m.updates.length) ? m.updates[m.updates.length-1].message : 'No updates yet';
+      html += `<tr>
+        <td>${m.id}</td>
+        <td>${escapeHtml(m.customer)}</td>
+        <td>${escapeHtml(m.machine_name)}</td>
+        <td><span class="status-badge ${m.status==='Down'?'status-down':'status-running'}">${m.status}</span></td>
+        <td>${agingDays(m.reported_date)}</td>
+        <td>${escapeHtml(last)}</td>
+        <td><button class="detail-link" data-id="${m.id}">History</button></td>
+      </tr>`;
     });
   }
+  table.innerHTML = html;
+
+  // Attach detail handlers
+  table.querySelectorAll('.detail-link').forEach(btn => {
+    btn.addEventListener('click', ()=> openDetail(btn.dataset.id));
+  });
+}
+
 
   // Escape HTML
   function escapeHtml(s) {
