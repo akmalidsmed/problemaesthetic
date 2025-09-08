@@ -259,7 +259,7 @@ function renderTable() {
         <td><span class="status-badge ${m.status==='Down'?'status-down':'status-running'}">${m.status}</span></td>
         <td>${agingDays(m.reported_date)}</td>
         <td>${escapeHtml(last)}</td>
-        <td><button class="detail-link" data-id="${m.id}">History</button></td>
+        <td><button class="detail-link" data-id="${m.id}">Click Here</button></td>
       </tr>`;
     });
   }
