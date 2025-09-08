@@ -703,20 +703,6 @@ function renderTable() {
   // Excel Export Event Listener
   exportExcelBtn.addEventListener('click', exportToExcel);
 
-  // Search functionality
-  searchInput.addEventListener('input', (e) => {
-    currentSearch = e.target.value.trim();
-    renderTable();
-  });
-
-  // Sort functionality
-  document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('sort-btn')) {
-      currentSort = e.target.dataset.sort;
-      renderTable();
-    }
-  });
-
   // init render
   function renderAll() {
     renderAdminStatus();
