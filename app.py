@@ -96,6 +96,7 @@ HTML = r"""<!DOCTYPE html>
       <div class="controls">
         <button class="btn" id="add-problem-btn">➕ Add Problem</button>
         <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
+        <button class="btn ghost" id="clear-data-btn">Reset Data</button>
       </div>
     </div>
 
@@ -106,12 +107,464 @@ HTML = r"""<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- Modals ... (tidak berubah) -->
-  <!-- ... semua script JS tetap sama, hanya bagian clearBtn dihapus -->
+  <!-- Modals -->
+  <!-- Admin Login Modal -->
+  <div class="modal-overlay" id="admin-modal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="admin-title">
+      <button style="position:absolute;right:12px;top:8px;background:none;border:none;font-weight:900;color:var(--accent);cursor:pointer;" id="admin-close">&times;</button>
+      <h2 id="admin-title">Admin Login</h2>
+      <div class="row">
+        <label for="admin-pin">Enter PIN</label>
+        <input id="admin-pin" type="password" placeholder="4-digit PIN" />
+        <button class="btn" id="admin-login-btn">Login</button>
+      </div>
+      <div class="small muted-plain">PIN default: <strong>0101</strong> (only for demo). PIN input is hidden.</div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Problem Modal -->
+  <div class="modal-overlay" id="problem-form-modal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="form-title">
+      <button style="position:absolute;right:12px;top:8px;background:none;border:none;font-weight:900;color:var(--accent);cursor:pointer;" id="problem-form-close">&times;</button>
+      <h2 id="form-title">Add / Edit Problem</h2>
+      <div id="form-body">
+        <div class="row"><label>Customer</label><input id="f-customer" type="text" /></div>
+        <div class="row"><label>Unit</label><input id="f-unit" type="text" /></div>
+        <div class="row"><label>Status</label><select id="f-status"><option>Down</option><option>Running</option></select></div>
+        <div class="row"><label>Reported Date</label><input id="f-date" type="date" /></div>
+        <div class="row"><label>PIC</label><input id="f-pic" type="text" /></div>
+        <div class="row"><label>Initial Update</label><textarea id="f-initial" placeholder="Optional initial update"></textarea></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px;">
+          <button class="btn secondary" id="form-cancel">Cancel</button>
+          <button class="btn" id="form-submit">Submit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail Modal -->
+  <div class="modal-overlay" id="detail-modal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+      <button style="position:absolute;right:12px;top:8px;background:none;border:none;font-weight:900;color:var(--accent);cursor:pointer;" id="detail-close">&times;</button>
+      <h2 id="detail-title">Machine Problem Details</h2>
+      <div id="detail-body"></div>
+    </div>
+  </div>
 
 <script>
-  // ... semua kode JS tetap
-  // 🔴 bagian clearBtn (reset data) sudah dihapus
+  // Initialize default data if absent
+  if (!localStorage.getItem('machines_demo')) {
+    const defaultData = [
+      { id: 1, customer: 'Klinik Aura', machine_name: 'Lutronic Spectra XT', status: 'Down', reported_date: '2023-10-01', pic: 'Rully Candra', updates: [
+        { ts: '2023-10-02T09:00:00', author: 'Rully Candra', message: 'Initial report: machine not powering on.' },
+        { ts: '2023-10-03T14:30:00', author: 'Technician A', message: 'Checked power supply, replaced fuse.' }
+      ]},
+      { id: 2, customer: 'RS BIH Sanur', machine_name: 'Cynosure Revlite', status: 'Running', reported_date: '2023-10-02', pic: 'Muhammad Lukmansyah', updates: [
+        { ts: '2023-10-05T09:00:00', author: 'Muhammad Lukmansyah', message: 'Routine check - all OK.' }
+      ]}
+    ];
+    localStorage.setItem('machines_demo', JSON.stringify(defaultData));
+  }
+
+  if (localStorage.getItem('admin_mode') === null) localStorage.setItem('admin_mode','false');
+
+  // Helpers
+  function load() { return JSON.parse(localStorage.getItem('machines_demo')||'[]'); }
+  function save(arr) { localStorage.setItem('machines_demo', JSON.stringify(arr)); }
+  function isAdmin() { return localStorage.getItem('admin_mode') === 'true'; }
+  function uid() { const arr=load(); return (arr.reduce((a,b)=>Math.max(a,b.id||0),0)+1); }
+  function formatDate(d) {
+    if(!d) return '';
+    const parts = d.split('T')[0] || d;
+    const dt = new Date(parts);
+    if (!isNaN(dt)) return dt.toLocaleDateString();
+    return d;
+  }
+  function agingDays(date) {
+    const now = new Date(); const rep = new Date(date);
+    const diff = now - rep;
+    return Math.max(0, Math.floor(diff / (1000*60*60*24)));
+  }
+
+  // UI refs
+  const adminStatusEl = document.getElementById('admin-status');
+  const adminModal = document.getElementById('admin-modal');
+  const adminPinInput = document.getElementById('admin-pin');
+  const adminLoginBtn = document.getElementById('admin-login-btn');
+  const adminToggle = document.getElementById('admin-toggle-btn');
+  const adminClose = document.getElementById('admin-close');
+
+  const addProblemBtn = document.getElementById('add-problem-btn');
+  const problemModal = document.getElementById('problem-form-modal');
+  const problemClose = document.getElementById('problem-form-close');
+  const formCancel = document.getElementById('form-cancel');
+  const formSubmit = document.getElementById('form-submit');
+
+  const detailModal = document.getElementById('detail-modal');
+  const detailClose = document.getElementById('detail-close');
+
+  const clearBtn = document.getElementById('clear-data-btn');
+
+  // Update admin status pill
+  function renderAdminStatus() {
+    if (isAdmin()) {
+      adminStatusEl.innerHTML = '<div class="admin-pill">Admin Mode: ON</div>';
+      adminToggle.textContent = '🚪 Logout Admin';
+    } else {
+      adminStatusEl.innerHTML = '<div class="muted-plain">Mode: User</div>';
+      adminToggle.textContent = '🔑 Admin Mode';
+    }
+  }
+
+  // Summary KPIs (clickable to filter)
+  let currentFilter = 'all';
+  function renderSummary() {
+    const data = load();
+    const total = data.length;
+    const down = data.filter(d=>d.status==='Down').length;
+    const running = data.filter(d=>d.status==='Running').length;
+    const el = document.getElementById('summary');
+    el.innerHTML = `
+      <div class="kpi all" data-key="all" role="button" tabindex="0"><div class="label">Total Problem</div><div class="value">${total}</div></div>
+      <div class="kpi down" data-key="Down" role="button" tabindex="0"><div class="label">Total Down</div><div class="value">${down}</div></div>
+      <div class="kpi running" data-key="Running" role="button" tabindex="0"><div class="label">Total Running</div><div class="value">${running}</div></div>
+    `;
+    el.querySelectorAll('.kpi').forEach(k=>{
+      k.addEventListener('click', ()=> {
+        const key = k.dataset.key;
+        if (currentFilter === key) currentFilter = 'all'; else currentFilter = key;
+        renderTable();
+      });
+    });
+  }
+
+  // Table (History column shows last update message)
+  function renderTable() {
+    const data = load();
+    let list = data;
+    if (currentFilter === 'Down') list = data.filter(x=>x.status==='Down');
+    else if (currentFilter === 'Running') list = data.filter(x=>x.status==='Running');
+
+    const table = document.getElementById('machine-table');
+    let html = `<tr><th>ID</th><th>Customer</th><th>Unit</th><th>Status</th><th>Aging (days)</th><th>History</th><th>Details</th></tr>`;
+    if (list.length === 0) {
+      html += `<tr><td colspan="7" class="small muted-plain" style="padding:24px;text-align:center">No machines found.</td></tr>`;
+    } else {
+      list.forEach(m => {
+        const last = (m.updates && m.updates.length) ? m.updates[m.updates.length-1].message : 'No updates yet';
+        html += `<tr>
+          <td>${m.id}</td>
+          <td>${escapeHtml(m.customer)}</td>
+          <td>${escapeHtml(m.machine_name)}</td>
+          <td><span class="status-badge ${m.status==='Down'?'status-down':'status-running'}">${m.status}</span></td>
+          <td>${agingDays(m.reported_date)}</td>
+          <td>${escapeHtml(last)}</td>
+          <td><button class="detail-link" data-id="${m.id}">Detail</button></td>
+        </tr>`;
+      });
+    }
+    table.innerHTML = html;
+
+    // Attach detail handlers
+    table.querySelectorAll('.detail-link').forEach(btn => {
+      btn.addEventListener('click', ()=> openDetail(btn.dataset.id));
+    });
+  }
+
+  // Escape HTML
+  function escapeHtml(s) {
+    if (!s) return '';
+    return s.toString().replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  }
+
+  // Open Detail Modal: show full info + admin controls (edit/add update/delete) when isAdmin
+  function openDetail(id) {
+    const data = load();
+    const m = data.find(x=>x.id == id);
+    if (!m) return;
+    const body = document.getElementById('detail-body');
+    let html = `
+      <div class="row"><label>ID</label><div class="muted-plain">${m.id}</div></div>
+      <div class="row"><label>Customer</label><div class="muted-plain">${escapeHtml(m.customer)}</div></div>
+      <div class="row"><label>Unit</label><div class="muted-plain">${escapeHtml(m.machine_name)}</div></div>
+      <div class="row"><label>Status</label><div class="muted-plain">${m.status}</div></div>
+      <div class="row"><label>Reported Date</label><div class="muted-plain">${formatDate(m.reported_date)}</div></div>
+      <div class="row"><label>PIC</label><div class="muted-plain">${escapeHtml(m.pic)}</div></div>
+      <hr style="margin:12px 0;border:none;border-top:1px solid #eef4ff" />
+      <h3 class="small">History (all updates)</h3>
+      <div id="updates-list">`;
+    if (m.updates && m.updates.length) {
+      m.updates.slice().reverse().forEach((u, idx) => {
+        // compute original index for delete mapping
+        const origIndex = m.updates.length - 1 - idx;
+        html += `<div class="update-item">
+          <div>
+            <div class="update-meta">${escapeHtml(u.author)} • ${escapeHtml(u.ts)}</div>
+            <div class="update-left">${escapeHtml(u.message)}</div>
+          </div>
+          ${isAdmin() ? `<div style="display:flex;flex-direction:column;gap:8px;">
+            <button class="btn secondary" data-action="edit-update" data-idx="${origIndex}" data-id="${m.id}">Edit</button>
+            <button class="danger" data-action="del-update" data-idx="${origIndex}" data-id="${m.id}">Delete</button>
+          </div>` : ''}
+        </div>`;
+      });
+    } else {
+      html += `<div class="small muted-plain">No updates yet.</div>`;
+    }
+    html += `</div>`;
+
+    // Admin action buttons in detail
+    if (isAdmin()) {
+      html += `<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+        <button class="btn secondary" id="detail-edit-btn">Edit Problem</button>
+        <button class="btn" id="detail-addupd-btn">Add Update</button>
+        <button class="danger" id="detail-delete-btn">Delete Problem</button>
+      </div>`;
+    }
+    body.innerHTML = html;
+    detailModal.classList.add('active');
+
+    // attach admin buttons
+    if (isAdmin()) {
+      document.getElementById('detail-edit-btn').addEventListener('click', ()=> openProblemForm('edit', m.id));
+      document.getElementById('detail-addupd-btn').addEventListener('click', ()=> openAddUpdate(m.id));
+      document.getElementById('detail-delete-btn').addEventListener('click', ()=> {
+        if (!confirm('Delete this problem permanently?')) return;
+        const arr = load().filter(x=>x.id!=m.id);
+        save(arr); detailModal.classList.remove('active'); renderAll();
+      });
+
+      // attach delete/update edit handlers for each update button
+      body.querySelectorAll('[data-action="del-update"]').forEach(btn=>{
+        btn.addEventListener('click', ()=> {
+          const idx = parseInt(btn.dataset.idx);
+          const mid = parseInt(btn.dataset.id);
+          if (!confirm('Delete this update?')) return;
+          const arr = load();
+          const mm = arr.find(x=>x.id==mid);
+          if (!mm) return;
+          mm.updates.splice(idx,1);
+          save(arr); openDetail(mid); renderAll();
+        });
+      });
+      body.querySelectorAll('[data-action="edit-update"]').forEach(btn=>{
+        btn.addEventListener('click', ()=> {
+          const idx = parseInt(btn.dataset.idx);
+          const mid = parseInt(btn.dataset.id);
+          openEditUpdate(mid, idx);
+        });
+      });
+    }
+  }
+
+  // Open Add/Edit Problem Form (admin only). mode: 'add'|'edit'
+  function openProblemForm(mode='add', id=null) {
+    if (!isAdmin()) { alert('Admin mode required'); return; }
+    const modal = problemModal;
+    modal.classList.add('active');
+    const title = document.getElementById('form-title');
+    const cust = document.getElementById('f-customer');
+    const unit = document.getElementById('f-unit');
+    const status = document.getElementById('f-status');
+    const date = document.getElementById('f-date');
+    const pic = document.getElementById('f-pic');
+    const initial = document.getElementById('f-initial');
+
+    if (mode === 'add') {
+      title.textContent = 'Add Problem';
+      cust.value=''; unit.value=''; status.value='Down';
+      date.value = new Date().toISOString().slice(0,10);
+      pic.value=''; initial.value='';
+      modal.dataset.mode='add'; modal.dataset.id='';
+    } else {
+      const arr = load(); const m = arr.find(x=>x.id==id);
+      if(!m) return;
+      title.textContent = 'Edit Problem';
+      cust.value = m.customer || '';
+      unit.value = m.machine_name || '';
+      status.value = m.status || 'Down';
+      // set yyyy-mm-dd
+      let d = m.reported_date || new Date().toISOString().slice(0,10);
+      const dt = new Date(d);
+      if (!isNaN(dt)) d = dt.toISOString().slice(0,10);
+      date.value = d;
+      pic.value = m.pic || '';
+      initial.value = '';
+      modal.dataset.mode='edit'; modal.dataset.id = m.id;
+    }
+  }
+
+  // Close modals
+  document.getElementById('admin-close').addEventListener('click', ()=> { adminModal.classList.remove('active'); adminPinInput.value=''; });
+  problemClose.addEventListener('click', ()=> problemModal.classList.remove('active'));
+  formCancel.addEventListener('click', ()=> problemModal.classList.remove('active'));
+  detailClose.addEventListener('click', ()=> detailModal.classList.remove('active'));
+
+  // Admin toggle -> open admin modal
+  adminToggle.addEventListener('click', ()=> {
+    if (isAdmin()) {
+      localStorage.setItem('admin_mode','false'); renderAll();
+    } else {
+      adminModal.classList.add('active');
+      adminPinInput.value=''; adminPinInput.focus();
+    }
+  });
+
+  // Admin login
+  adminLoginBtn.addEventListener('click', ()=> {
+    const pin = adminPinInput.value.trim();
+    if (pin === '0101') {
+      localStorage.setItem('admin_mode','true');
+      adminModal.classList.remove('active');
+      adminPinInput.value='';
+      renderAll();
+      alert('Admin Mode activated');
+    } else {
+      alert('PIN salah');
+    }
+  });
+
+  // Add problem button => open form (not auto-add)
+  addProblemBtn.addEventListener('click', ()=> {
+    if (!isAdmin()) { alert('Admin Mode required to add problem'); return; }
+    openProblemForm('add', null);
+  });
+
+  // Submit form (add or edit)
+  formSubmit.addEventListener('click', ()=> {
+    const mode = problemModal.dataset.mode || 'add';
+    const id = problemModal.dataset.id || '';
+    const cust = document.getElementById('f-customer').value.trim();
+    const unit = document.getElementById('f-unit').value.trim();
+    const status = document.getElementById('f-status').value;
+    const date = document.getElementById('f-date').value;
+    const pic = document.getElementById('f-pic').value.trim() || 'Unknown';
+    const initial = document.getElementById('f-initial').value.trim();
+
+    if (!cust || !unit || !date) { alert('Lengkapi Customer, Unit, dan Reported Date'); return; }
+
+    const arr = load();
+    if (mode === 'add') {
+      const newId = uid();
+      const newRec = { id: newId, customer: cust, machine_name: unit, status: status, reported_date: date, pic: pic, updates: [] };
+      if (initial) newRec.updates.push({ ts: new Date().toISOString(), author: pic, message: initial });
+      arr.push(newRec);
+      save(arr);
+      problemModal.classList.remove('active');
+      renderAll();
+    } else {
+      const mid = parseInt(id);
+      const idx = arr.findIndex(x=>x.id==mid);
+      if (idx === -1) { alert('Data tidak ditemukan'); return; }
+      arr[idx].customer = cust;
+      arr[idx].machine_name = unit;
+      arr[idx].status = status;
+      arr[idx].reported_date = date;
+      arr[idx].pic = pic;
+      if (initial) arr[idx].updates.push({ ts: new Date().toISOString(), author: pic, message: initial });
+      save(arr);
+      problemModal.classList.remove('active');
+      renderAll();
+    }
+  });
+
+  // Add Update from detail view (modal sub-form)
+  function openAddUpdate(mid) {
+    if (!isAdmin()) { alert('Admin required'); return; }
+    const arr = load(); const m = arr.find(x=>x.id==mid); if(!m) return;
+    // Show a small inline prompt inside detail modal
+    const body = document.getElementById('detail-body');
+    const formHtml = `
+      <div style="margin-top:12px;border-top:1px solid #f1f8ff;padding-top:12px;">
+        <div class="row"><label>PIC</label><input id="tmp-upd-pic" type="text" value="${escapeHtml(m.pic)}" /></div>
+        <div class="row"><label>Message</label><textarea id="tmp-upd-msg"></textarea></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+          <button class="btn secondary" id="tmp-upd-cancel">Cancel</button>
+          <button class="btn" id="tmp-upd-save">Save Update</button>
+        </div>
+      </div>
+    `;
+    body.insertAdjacentHTML('beforeend', formHtml);
+    document.getElementById('tmp-upd-cancel').addEventListener('click', ()=> { renderDetailInline(mid); });
+    document.getElementById('tmp-upd-save').addEventListener('click', ()=> {
+      const author = document.getElementById('tmp-upd-pic').value.trim() || m.pic || 'Unknown';
+      const msg = document.getElementById('tmp-upd-msg').value.trim();
+      if (!msg) { alert('Message tidak boleh kosong'); return; }
+      m.updates = m.updates || [];
+      m.updates.push({ ts: new Date().toISOString(), author: author, message: msg });
+      save(arr);
+      renderDetailInline(mid);
+      renderAll(); // update table history
+    });
+  }
+
+  // Render detail modal body again (used to refresh inline forms)
+  function renderDetailInline(mid) {
+    const data = load(); const m = data.find(x=>x.id==mid); if(!m) return;
+    // reuse openDetail structure by closing and reopening to refresh
+    detailModal.classList.remove('active');
+    setTimeout(()=> openDetail(mid), 120);
+  }
+
+  // Edit update: open inline edit form for a specific update index
+  function openEditUpdate(mid, updIndex) {
+    if (!isAdmin()) return;
+    const arr = load(); const m = arr.find(x=>x.id==mid); if(!m) return;
+    const original = m.updates[updIndex];
+    const body = document.getElementById('detail-body');
+    const formHtml = `
+      <div style="margin-top:12px;border-top:1px dashed #eef4ff;padding-top:12px;">
+        <div class="row"><label>PIC</label><input id="edit-upd-pic" type="text" value="${escapeHtml(original.author)}"/></div>
+        <div class="row"><label>Message</label><textarea id="edit-upd-msg">${escapeHtml(original.message)}</textarea></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+          <button class="btn secondary" id="edit-upd-cancel">Cancel</button>
+          <button class="btn" id="edit-upd-save">Save Changes</button>
+        </div>
+      </div>`;
+    body.insertAdjacentHTML('beforeend', formHtml);
+    document.getElementById('edit-upd-cancel').addEventListener('click', ()=> { renderDetailInline(mid); });
+    document.getElementById('edit-upd-save').addEventListener('click', ()=> {
+      const a = document.getElementById('edit-upd-pic').value.trim() || m.pic || 'Unknown';
+      const msg = document.getElementById('edit-upd-msg').value.trim();
+      if (!msg) { alert('Message tidak boleh kosong'); return; }
+      m.updates[updIndex].author = a;
+      m.updates[updIndex].message = msg;
+      // keep ts as original or update ts? we keep original ts for traceability
+      save(arr);
+      renderDetailInline(mid);
+      renderAll();
+    });
+  }
+
+  // Reset data (for demo) - confirmation
+  clearBtn.addEventListener('click', ()=> {
+    if (!confirm('Reset data ke default? Ini akan menghapus perubahan Anda.')) return;
+    localStorage.removeItem('machines_demo');
+    localStorage.removeItem('admin_mode');
+    location.reload();
+  });
+
+  // init render
+  function renderAll() {
+    renderAdminStatus();
+    renderSummary();
+    renderTable();
+  }
+
+  // wire detail modal close on overlay click / Esc
+  document.getElementById('detail-modal').addEventListener('click', (e)=>{ if (e.target === document.getElementById('detail-modal')) detailModal.classList.remove('active'); });
+  document.getElementById('problem-form-modal').addEventListener('click', (e)=>{ if (e.target === document.getElementById('problem-form-modal')) problemModal.classList.remove('active'); });
+  document.getElementById('admin-modal').addEventListener('click', (e)=>{ if (e.target === document.getElementById('admin-modal')) adminModal.classList.remove('active'); });
+
+  // initial call
+  renderAll();
+
+  // keyboard Esc to close modals
+  document.addEventListener('keydown', (e)=> {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay.active').forEach(m=>m.classList.remove('active'));
+    }
+  });
 </script>
 </body>
 </html>
