@@ -272,7 +272,7 @@ HTML = r"""<!DOCTYPE html>
             machine.id,
             machine.customer || '',
             machine.machine_name || '',
-            update.ts ? new Date(update.ts).toLocaleString() : '',
+            update.ts ? formatUpdateDate(update.ts) : '',
             update.author || '',
             update.message || ''
           ]);
