@@ -279,6 +279,147 @@ function renderTable() {
   }
 
   // Open Detail Modal: show full info + admin controls (edit/add update/delete) when isAdmin
+  // Ubah tombol edit dan delete update jadi simbol, dan buat inline edit langsung di tempat
+function openDetail(id) {
+  const data = load();
+  const m = data.find(x=>x.id == id);
+  if (!m) return;
+  const body = document.getElementById('detail-body');
+  let html = `
+    <div class="row"><label>ID</label><div class="muted-plain">${m.id}</div></div>
+    <div class="row"><label>Customer</label><div class="muted-plain">${escapeHtml(m.customer)}</div></div>
+    <div class="row"><label>Unit</label><div class="muted-plain">${escapeHtml(m.machine_name)}</div></div>
+    <div class="row"><label>Status</label><div class="muted-plain">${m.status}</div></div>
+    <div class="row"><label>Reported Date</label><div class="muted-plain">${formatDate(m.reported_date)}</div></div>
+    <div class="row"><label>PIC</label><div class="muted-plain">${escapeHtml(m.pic)}</div></div>
+    <hr style="margin:12px 0;border:none;border-top:1px solid #eef4ff" />
+    <h3 class="small">History (all updates)</h3>
+    <div id="updates-list">`;
+  if (m.updates && m.updates.length) {
+    m.updates.slice().reverse().forEach((u, idx) => {
+      const origIndex = m.updates.length - 1 - idx;
+      html += `<div class="update-item" data-idx="${origIndex}">
+        <div>
+          <div class="update-meta">${escapeHtml(u.author)} • ${escapeHtml(u.ts)}</div>
+          <div class="update-left" data-editable="false">${escapeHtml(u.message)}</div>
+        </div>`;
+      if (isAdmin()) {
+        html += `<div style="display:flex;flex-direction:column;gap:8px;">
+          <button class="btn secondary edit-update-btn" title="Edit" data-idx="${origIndex}" data-id="${m.id}">✏️</button>
+          <button class="danger del-update-btn" title="Delete" data-idx="${origIndex}" data-id="${m.id}">🗑️</button>
+        </div>`;
+      }
+      html += `</div>`;
+    });
+  } else {
+    html += `<div class="small muted-plain">No updates yet.</div>`;
+  }
+  html += `</div>`;
+
+  if (isAdmin()) {
+    html += `<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+      <button class="btn secondary" id="detail-edit-btn">Edit Problem</button>
+      <button class="btn" id="detail-addupd-btn">Add Update</button>
+      <button class="danger" id="detail-delete-btn">Delete Problem</button>
+    </div>`;
+  }
+  body.innerHTML = html;
+  detailModal.classList.add('active');
+
+  if (isAdmin()) {
+    document.getElementById('detail-edit-btn').addEventListener('click', ()=> openProblemForm('edit', m.id));
+    document.getElementById('detail-addupd-btn').addEventListener('click', ()=> openAddUpdate(m.id));
+    document.getElementById('detail-delete-btn').addEventListener('click', ()=> {
+      if (!confirm('Delete this problem permanently?')) return;
+      const arr = load().filter(x=>x.id!=m.id);
+      save(arr); detailModal.classList.remove('active'); renderAll();
+    });
+
+    // Delete update with confirmation
+    body.querySelectorAll('.del-update-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=> {
+        const idx = parseInt(btn.dataset.idx);
+        const mid = parseInt(btn.dataset.id);
+        if (!confirm('Delete this update?')) return;
+        const arr = load();
+        const mm = arr.find(x=>x.id==mid);
+        if (!mm) return;
+        mm.updates.splice(idx,1);
+        save(arr); openDetail(mid); renderAll();
+      });
+    });
+
+    // Inline edit update on click edit button
+    body.querySelectorAll('.edit-update-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=> {
+        const idx = parseInt(btn.dataset.idx);
+        const mid = parseInt(btn.dataset.id);
+        inlineEditUpdate(mid, idx);
+      });
+    });
+  }
+}
+
+// Fungsi inline edit update (langsung edit teks di tempat)
+function inlineEditUpdate(mid, updIndex) {
+  const arr = load();
+  const m = arr.find(x=>x.id==mid);
+  if (!m) return;
+  const updateItem = document.querySelector(`.update-item[data-idx="${updIndex}"]`);
+  if (!updateItem) return;
+
+  const messageDiv = updateItem.querySelector('.update-left');
+  if (!messageDiv) return;
+
+  // Jika sudah dalam mode edit, jangan lakukan apa-apa
+  if (messageDiv.getAttribute('data-editable') === 'true') return;
+
+  // Simpan teks asli
+  const originalText = messageDiv.textContent;
+
+  // Ganti div menjadi textarea
+  const textarea = document.createElement('textarea');
+  textarea.value = originalText;
+  textarea.style.width = '100%';
+  textarea.style.minHeight = '60px';
+  textarea.style.fontSize = '1rem';
+  textarea.style.fontFamily = 'inherit';
+  textarea.style.fontWeight = '700';
+  textarea.style.borderRadius = '8px';
+  textarea.style.border = '1px solid #e6eef8';
+  textarea.style.padding = '6px 8px';
+  messageDiv.replaceWith(textarea);
+  textarea.focus();
+  textarea.setAttribute('data-editable', 'true');
+
+  // Ganti tombol edit dan delete dengan tombol save dan cancel
+  const btnContainer = updateItem.querySelector('div:last-child');
+  btnContainer.innerHTML = `
+    <button class="btn secondary save-update-btn" title="Save">💾</button>
+    <button class="danger cancel-update-btn" title="Cancel">✖️</button>
+  `;
+
+  // Save handler
+  btnContainer.querySelector('.save-update-btn').addEventListener('click', () => {
+    const newMsg = textarea.value.trim();
+    if (!newMsg) {
+      alert('Message tidak boleh kosong');
+      textarea.focus();
+      return;
+    }
+    m.updates[updIndex].message = newMsg;
+    // Tetap simpan ts asli untuk traceability
+    save(arr);
+    openDetail(mid);
+    renderAll();
+  });
+
+  // Cancel handler
+  btnContainer.querySelector('.cancel-update-btn').addEventListener('click', () => {
+    openDetail(mid);
+  });
+}
+
   function openDetail(id) {
     const data = load();
     const m = data.find(x=>x.id == id);
