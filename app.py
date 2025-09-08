@@ -88,16 +88,6 @@ HTML = r"""<!DOCTYPE html>
   <div class="wrap">
     <h1 class="app-title">Report Problem Aesthetic</h1>
 
-    <div class="topbar">
-      <div class="admin-status" id="admin-status">
-        <!-- Admin pill will be inserted here -->
-      </div>
-
-      <div class="controls">
-        <button class="btn" id="add-problem-btn">➕ Add Problem</button>
-        <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
-        <button class="btn ghost" id="clear-data-btn"></button>
-      </div>
     </div>
 
     <div class="summary" id="summary" role="tablist" aria-label="summary filters"></div>
@@ -122,6 +112,17 @@ HTML = r"""<!DOCTYPE html>
     </div>
   </div>
 
+    <div class="topbar">
+      <div class="admin-status" id="admin-status">
+        <!-- Admin pill will be inserted here -->
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="add-problem-btn">➕ Add Problem</button>
+        <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
+        <button class="btn ghost" id="clear-data-btn"></button>
+      </div>
+      
   <!-- Add/Edit Problem Modal -->
   <div class="modal-overlay" id="problem-form-modal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="form-title">
