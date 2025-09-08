@@ -93,11 +93,6 @@ HTML = r"""<!DOCTYPE html>
         <!-- Admin pill will be inserted here -->
       </div>
 
-      <div class="controls">
-        <button class="btn" id="add-problem-btn">➕ Add Problem</button>
-        <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
-        <button class="btn ghost" id="clear-data-btn"></button>
-      </div>
     </div>
 
     <div class="summary" id="summary" role="tablist" aria-label="summary filters"></div>
@@ -107,6 +102,12 @@ HTML = r"""<!DOCTYPE html>
     </div>
   </div>
 
+      <div class="controls">
+        <button class="btn" id="add-problem-btn">➕ Add Problem</button>
+        <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
+        <button class="btn ghost" id="clear-data-btn"></button>
+      </div>
+      
   <!-- Modals -->
   <!-- Admin Login Modal -->
   <div class="modal-overlay" id="admin-modal" aria-hidden="true">
