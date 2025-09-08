@@ -304,8 +304,8 @@ function renderTable() {
             <div class="update-left">${escapeHtml(u.message)}</div>
           </div>
           ${isAdmin() ? `<div style="display:flex;flex-direction:column;gap:8px;">
-            <button class="btn secondary" data-action="edit-update" data-idx="${origIndex}" data-id="${m.id}">Edit</button>
-            <button class="danger" data-action="del-update" data-idx="${origIndex}" data-id="${m.id}">Delete</button>
+            <button class="btn secondary" data-action="edit-update" data-idx="${origIndex}" data-id="${m.id}">✏️</button>
+            <button class="danger" data-action="del-update" data-idx="${origIndex}" data-id="${m.id}">🗑️</button>
           </div>` : ''}
         </div>`;
       });
