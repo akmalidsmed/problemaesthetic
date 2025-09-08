@@ -10,6 +10,8 @@ HTML = r"""<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Report Problem Aesthetic</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     :root { --primary: #1e40af; --accent: #2563eb; --bg1: linear-gradient(135deg,#e0e7ff,#c7d2fe); }
     body {
@@ -35,6 +37,7 @@ HTML = r"""<!DOCTYPE html>
     .btn { background:var(--accent); color:white; border:none; padding:10px 14px; border-radius:10px; font-weight:800; cursor:pointer; box-shadow:0 10px 24px rgba(37,99,235,0.12); }
     .btn.secondary { background:white; color:var(--accent); border:2px solid rgba(37,99,235,0.12); box-shadow:none; }
     .btn.ghost { background:transparent; color:var(--accent); border:none; text-decoration:underline; padding:6px; font-weight:700; }
+    .btn.success { background:#059669; color:white; box-shadow:0 10px 24px rgba(5,150,105,0.12); }
 
     .summary { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-bottom:18px; }
     .kpi { width:180px; height:120px; border-radius:14px; display:flex; flex-direction:column; justify-content:center; align-items:center; color:white; font-weight:800; cursor:pointer; user-select:none; transition:transform .12s ease, box-shadow .12s ease; }
@@ -101,6 +104,7 @@ HTML = r"""<!DOCTYPE html>
       </div>
 
       <div class="controls">
+        <button class="btn success" id="export-excel-btn">📊 Export to Excel</button>
         <button class="btn" id="add-problem-btn">➕ Add Problem</button>
         <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
         <button class="btn ghost" id="clear-data-btn"></button>
@@ -191,6 +195,151 @@ HTML = r"""<!DOCTYPE html>
     return Math.max(0, Math.floor(diff / (1000*60*60*24)));
   }
 
+  // Excel Export Function
+  function exportToExcel() {
+    const data = load();
+    if (data.length === 0) {
+      alert('No data to export');
+      return;
+    }
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Summary Sheet
+    const summaryData = [
+      ['Machine Problem Report Summary', '', '', ''],
+      ['Generated Date:', new Date().toLocaleDateString(), '', ''],
+      ['', '', '', ''],
+      ['Category', 'Count', 'Percentage', ''],
+      ['Total Problems', data.length, '100%', ''],
+      ['Down Machines', data.filter(d => d.status === 'Down').length, `${((data.filter(d => d.status === 'Down').length / data.length) * 100).toFixed(1)}%`, ''],
+      ['Running Machines', data.filter(d => d.status === 'Running').length, `${((data.filter(d => d.status === 'Running').length / data.length) * 100).toFixed(1)}%`, ''],
+    ];
+    const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+    
+    // Style summary sheet
+    summaryWs['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }
+    ];
+    XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+
+    // Main Data Sheet
+    const mainData = [
+      ['ID', 'Customer', 'Machine/Unit', 'Status', 'Reported Date', 'Aging (Days)', 'PIC', 'Latest Update', 'Total Updates']
+    ];
+    
+    data.forEach(machine => {
+      const latestUpdate = machine.updates && machine.updates.length > 0 ? 
+        machine.updates[machine.updates.length - 1].message : 'No updates yet';
+      
+      mainData.push([
+        machine.id,
+        machine.customer || '',
+        machine.machine_name || '',
+        machine.status || '',
+        formatDate(machine.reported_date),
+        agingDays(machine.reported_date),
+        machine.pic || '',
+        latestUpdate,
+        machine.updates ? machine.updates.length : 0
+      ]);
+    });
+    
+    const mainWs = XLSX.utils.aoa_to_sheet(mainData);
+    
+    // Auto-size columns
+    const maxWidth = [];
+    mainData.forEach(row => {
+      row.forEach((cell, idx) => {
+        const cellLength = cell ? cell.toString().length : 0;
+        maxWidth[idx] = Math.max(maxWidth[idx] || 0, cellLength);
+      });
+    });
+    
+    mainWs['!cols'] = maxWidth.map(w => ({ width: Math.min(w + 2, 50) }));
+    XLSX.utils.book_append_sheet(wb, mainWs, 'Machine Problems');
+
+    // Updates Detail Sheet
+    const updatesData = [
+      ['Machine ID', 'Customer', 'Machine/Unit', 'Update Date/Time', 'Author', 'Update Message']
+    ];
+    
+    data.forEach(machine => {
+      if (machine.updates && machine.updates.length > 0) {
+        machine.updates.forEach(update => {
+          updatesData.push([
+            machine.id,
+            machine.customer || '',
+            machine.machine_name || '',
+            update.ts ? new Date(update.ts).toLocaleString() : '',
+            update.author || '',
+            update.message || ''
+          ]);
+        });
+      }
+    });
+    
+    const updatesWs = XLSX.utils.aoa_to_sheet(updatesData);
+    
+    // Auto-size columns for updates sheet
+    const updatesMaxWidth = [];
+    updatesData.forEach(row => {
+      row.forEach((cell, idx) => {
+        const cellLength = cell ? cell.toString().length : 0;
+        updatesMaxWidth[idx] = Math.max(updatesMaxWidth[idx] || 0, cellLength);
+      });
+    });
+    
+    updatesWs['!cols'] = updatesMaxWidth.map(w => ({ width: Math.min(w + 2, 60) }));
+    XLSX.utils.book_append_sheet(wb, updatesWs, 'All Updates');
+
+    // Down Machines Sheet (filtered)
+    const downMachines = data.filter(d => d.status === 'Down');
+    if (downMachines.length > 0) {
+      const downData = [
+        ['ID', 'Customer', 'Machine/Unit', 'Reported Date', 'Aging (Days)', 'PIC', 'Latest Update']
+      ];
+      
+      downMachines.forEach(machine => {
+        const latestUpdate = machine.updates && machine.updates.length > 0 ? 
+          machine.updates[machine.updates.length - 1].message : 'No updates yet';
+        
+        downData.push([
+          machine.id,
+          machine.customer || '',
+          machine.machine_name || '',
+          formatDate(machine.reported_date),
+          agingDays(machine.reported_date),
+          machine.pic || '',
+          latestUpdate
+        ]);
+      });
+      
+      const downWs = XLSX.utils.aoa_to_sheet(downData);
+      const downMaxWidth = [];
+      downData.forEach(row => {
+        row.forEach((cell, idx) => {
+          const cellLength = cell ? cell.toString().length : 0;
+          downMaxWidth[idx] = Math.max(downMaxWidth[idx] || 0, cellLength);
+        });
+      });
+      
+      downWs['!cols'] = downMaxWidth.map(w => ({ width: Math.min(w + 2, 50) }));
+      XLSX.utils.book_append_sheet(wb, downWs, 'Down Machines');
+    }
+
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    const filename = `Machine_Problems_Report_${timestamp}.xlsx`;
+    
+    // Save file
+    XLSX.writeFile(wb, filename);
+    
+    // Show success message
+    alert(`Excel file exported successfully!\nFilename: ${filename}`);
+  }
+
   // UI refs
   const adminStatusEl = document.getElementById('admin-status');
   const adminModal = document.getElementById('admin-modal');
@@ -209,6 +358,7 @@ HTML = r"""<!DOCTYPE html>
   const detailClose = document.getElementById('detail-close');
 
   const clearBtn = document.getElementById('clear-data-btn');
+  const exportExcelBtn = document.getElementById('export-excel-btn');
 
   // Update admin status pill
   function renderAdminStatus() {
@@ -549,6 +699,9 @@ function renderTable() {
     localStorage.removeItem('admin_mode');
     location.reload();
   });
+
+  // Excel Export Event Listener
+  exportExcelBtn.addEventListener('click', exportToExcel);
 
   // init render
   function renderAll() {
