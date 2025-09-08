@@ -118,7 +118,7 @@ HTML = r"""<!DOCTYPE html>
         <input id="admin-pin" type="password" placeholder="4-digit PIN" />
         <button class="btn" id="admin-login-btn">Login</button>
       </div>
-      <div class="small muted-plain">PIN default: <strong>0101</strong> (only for demo). PIN input is hidden.</div>
+      <div class="small muted-plain">PIN default: <strong>****</strong> (only for demo). PIN input is hidden.</div>
     </div>
   </div>
 
