@@ -97,6 +97,12 @@ HTML = r"""<!DOCTYPE html>
 
     <div class="summary" id="summary" role="tablist" aria-label="summary filters"></div>
 
+      <div class="controls">
+        <button class="btn" id="add-problem-btn">➕ Add Problem</button>
+        <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
+        <button class="btn ghost" id="clear-data-btn"></button>
+      </div>
+      
     <div class="table-wrapper" aria-live="polite">
       <table id="machine-table" role="table"></table>
     </div>
