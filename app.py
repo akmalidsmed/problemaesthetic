@@ -104,8 +104,8 @@ HTML = r"""<!DOCTYPE html>
       </div>
 
       <div class="controls">
-        <button class="btn" id="add-problem-btn">➕ Add Problem</button>
         <button class="btn success" id="export-excel-btn">📊 Export to Excel</button>
+        <button class="btn" id="add-problem-btn">➕ Add Problem</button>
         <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
         <button class="btn ghost" id="clear-data-btn"></button>
       </div>
