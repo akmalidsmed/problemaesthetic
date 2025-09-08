@@ -395,7 +395,7 @@ HTML = r"""<!DOCTYPE html>
     if (isAdmin()) {
       adminStatusEl.innerHTML = '<div class="admin-pill">Admin Mode: ON</div>';
       adminToggle.textContent = '🚪 Logout Admin';
-      clearBtn.textContent = '🗑️ Reset Data';
+      clearBtn.textContent = '';
       clearBtn.style.display = 'block';
     } else {
       adminStatusEl.innerHTML = '<div class="muted-plain">Mode: User</div>';
