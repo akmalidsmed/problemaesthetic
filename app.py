@@ -91,7 +91,17 @@ HTML = r"""<!DOCTYPE html>
     </div>
 
     <div class="summary" id="summary" role="tablist" aria-label="summary filters"></div>
+    <div class="topbar">
+      <div class="admin-status" id="admin-status">
+        <!-- Admin pill will be inserted here -->
+      </div>
 
+      <div class="controls">
+        <button class="btn" id="add-problem-btn">➕ Add Problem</button>
+        <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
+        <button class="btn ghost" id="clear-data-btn"></button>
+      </div>
+      
     <div class="table-wrapper" aria-live="polite">
       <table id="machine-table" role="table"></table>
     </div>
@@ -111,17 +121,6 @@ HTML = r"""<!DOCTYPE html>
       <div class="small muted-plain">PIN default: <strong>****</strong> (only for demo). PIN input is hidden.</div>
     </div>
   </div>
-
-    <div class="topbar">
-      <div class="admin-status" id="admin-status">
-        <!-- Admin pill will be inserted here -->
-      </div>
-
-      <div class="controls">
-        <button class="btn" id="add-problem-btn">➕ Add Problem</button>
-        <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
-        <button class="btn ghost" id="clear-data-btn"></button>
-      </div>
       
   <!-- Add/Edit Problem Modal -->
   <div class="modal-overlay" id="problem-form-modal" aria-hidden="true">
