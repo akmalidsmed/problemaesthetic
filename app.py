@@ -72,25 +72,11 @@ HTML = r"""<!DOCTYPE html>
     .modal .small { font-size:0.95rem; color:#475569; }
 
     .update-item { background:#f1f9ff; padding:10px 12px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; gap:8px; align-items:center; }
-    .update-left { font-weight:800; color:#0f172a; white-space: pre-wrap; }
+    .update-left { font-weight:800; color:#0f172a; }
     .update-meta { font-size:0.9rem; color:#2563eb; font-weight:900; margin-bottom:6px; }
 
     .danger { background:#fecaca; color:#7f1d1d; border-radius:8px; padding:8px 10px; font-weight:900; border:none; cursor:pointer; }
     .muted-plain { color:#475569; font-weight:800; }
-
-    /* Buttons for inline edit */
-    .update-item button {
-      font-size: 1.2rem;
-      line-height: 1;
-      padding: 4px 8px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      user-select: none;
-    }
-    .update-item button:hover {
-      opacity: 0.8;
-    }
 
     @media (max-width:720px) {
       h1.app-title { font-size:3rem; }
@@ -110,7 +96,7 @@ HTML = r"""<!DOCTYPE html>
       <div class="controls">
         <button class="btn" id="add-problem-btn">➕ Add Problem</button>
         <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
-        <!-- Reset Data button removed -->
+        <button class="btn ghost" id="clear-data-btn">Reset Data</button>
       </div>
     </div>
 
@@ -132,8 +118,7 @@ HTML = r"""<!DOCTYPE html>
         <input id="admin-pin" type="password" placeholder="4-digit PIN" />
         <button class="btn" id="admin-login-btn">Login</button>
       </div>
-      <!-- PIN default text hidden -->
-      <div class="small muted-plain" style="display:none;">PIN default: <strong>0101</strong> (only for demo). PIN input is hidden.</div>
+      <div class="small muted-plain">PIN default: <strong>0101</strong> (only for demo). PIN input is hidden.</div>
     </div>
   </div>
 
@@ -218,6 +203,8 @@ HTML = r"""<!DOCTYPE html>
   const detailModal = document.getElementById('detail-modal');
   const detailClose = document.getElementById('detail-close');
 
+  const clearBtn = document.getElementById('clear-data-btn');
+
   // Update admin status pill
   function renderAdminStatus() {
     if (isAdmin()) {
@@ -251,7 +238,7 @@ HTML = r"""<!DOCTYPE html>
     });
   }
 
-  // Table (Action Plan column shows last update message, History column is detail button)
+  // Table (History column shows last update message)
   function renderTable() {
     const data = load();
     let list = data;
@@ -259,7 +246,7 @@ HTML = r"""<!DOCTYPE html>
     else if (currentFilter === 'Running') list = data.filter(x=>x.status==='Running');
 
     const table = document.getElementById('machine-table');
-    let html = `<tr><th>ID</th><th>Customer</th><th>Unit</th><th>Status</th><th>Aging (days)</th><th>Action Plan</th><th>History</th></tr>`;
+    let html = `<tr><th>ID</th><th>Customer</th><th>Unit</th><th>Status</th><th>Aging (days)</th><th>History</th><th>Details</th></tr>`;
     if (list.length === 0) {
       html += `<tr><td colspan="7" class="small muted-plain" style="padding:24px;text-align:center">No machines found.</td></tr>`;
     } else {
@@ -272,7 +259,7 @@ HTML = r"""<!DOCTYPE html>
           <td><span class="status-badge ${m.status==='Down'?'status-down':'status-running'}">${m.status}</span></td>
           <td>${agingDays(m.reported_date)}</td>
           <td>${escapeHtml(last)}</td>
-          <td><button class="detail-link" data-id="${m.id}">History</button></td>
+          <td><button class="detail-link" data-id="${m.id}">Detail</button></td>
         </tr>`;
       });
     }
@@ -284,4 +271,303 @@ HTML = r"""<!DOCTYPE html>
     });
   }
 
- 
+  // Escape HTML
+  function escapeHtml(s) {
+    if (!s) return '';
+    return s.toString().replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  }
+
+  // Open Detail Modal: show full info + admin controls (edit/add update/delete) when isAdmin
+  function openDetail(id) {
+    const data = load();
+    const m = data.find(x=>x.id == id);
+    if (!m) return;
+    const body = document.getElementById('detail-body');
+    let html = `
+      <div class="row"><label>ID</label><div class="muted-plain">${m.id}</div></div>
+      <div class="row"><label>Customer</label><div class="muted-plain">${escapeHtml(m.customer)}</div></div>
+      <div class="row"><label>Unit</label><div class="muted-plain">${escapeHtml(m.machine_name)}</div></div>
+      <div class="row"><label>Status</label><div class="muted-plain">${m.status}</div></div>
+      <div class="row"><label>Reported Date</label><div class="muted-plain">${formatDate(m.reported_date)}</div></div>
+      <div class="row"><label>PIC</label><div class="muted-plain">${escapeHtml(m.pic)}</div></div>
+      <hr style="margin:12px 0;border:none;border-top:1px solid #eef4ff" />
+      <h3 class="small">History (all updates)</h3>
+      <div id="updates-list">`;
+    if (m.updates && m.updates.length) {
+      m.updates.slice().reverse().forEach((u, idx) => {
+        // compute original index for delete mapping
+        const origIndex = m.updates.length - 1 - idx;
+        html += `<div class="update-item">
+          <div>
+            <div class="update-meta">${escapeHtml(u.author)} • ${escapeHtml(u.ts)}</div>
+            <div class="update-left">${escapeHtml(u.message)}</div>
+          </div>
+          ${isAdmin() ? `<div style="display:flex;flex-direction:column;gap:8px;">
+            <button class="btn secondary" data-action="edit-update" data-idx="${origIndex}" data-id="${m.id}">Edit</button>
+            <button class="danger" data-action="del-update" data-idx="${origIndex}" data-id="${m.id}">Delete</button>
+          </div>` : ''}
+        </div>`;
+      });
+    } else {
+      html += `<div class="small muted-plain">No updates yet.</div>`;
+    }
+    html += `</div>`;
+
+    // Admin action buttons in detail
+    if (isAdmin()) {
+      html += `<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+        <button class="btn secondary" id="detail-edit-btn">Edit Problem</button>
+        <button class="btn" id="detail-addupd-btn">Add Update</button>
+        <button class="danger" id="detail-delete-btn">Delete Problem</button>
+      </div>`;
+    }
+    body.innerHTML = html;
+    detailModal.classList.add('active');
+
+    // attach admin buttons
+    if (isAdmin()) {
+      document.getElementById('detail-edit-btn').addEventListener('click', ()=> openProblemForm('edit', m.id));
+      document.getElementById('detail-addupd-btn').addEventListener('click', ()=> openAddUpdate(m.id));
+      document.getElementById('detail-delete-btn').addEventListener('click', ()=> {
+        if (!confirm('Delete this problem permanently?')) return;
+        const arr = load().filter(x=>x.id!=m.id);
+        save(arr); detailModal.classList.remove('active'); renderAll();
+      });
+
+      // attach delete/update edit handlers for each update button
+      body.querySelectorAll('[data-action="del-update"]').forEach(btn=>{
+        btn.addEventListener('click', ()=> {
+          const idx = parseInt(btn.dataset.idx);
+          const mid = parseInt(btn.dataset.id);
+          if (!confirm('Delete this update?')) return;
+          const arr = load();
+          const mm = arr.find(x=>x.id==mid);
+          if (!mm) return;
+          mm.updates.splice(idx,1);
+          save(arr); openDetail(mid); renderAll();
+        });
+      });
+      body.querySelectorAll('[data-action="edit-update"]').forEach(btn=>{
+        btn.addEventListener('click', ()=> {
+          const idx = parseInt(btn.dataset.idx);
+          const mid = parseInt(btn.dataset.id);
+          openEditUpdate(mid, idx);
+        });
+      });
+    }
+  }
+
+  // Open Add/Edit Problem Form (admin only). mode: 'add'|'edit'
+  function openProblemForm(mode='add', id=null) {
+    if (!isAdmin()) { alert('Admin mode required'); return; }
+    const modal = problemModal;
+    modal.classList.add('active');
+    const title = document.getElementById('form-title');
+    const cust = document.getElementById('f-customer');
+    const unit = document.getElementById('f-unit');
+    const status = document.getElementById('f-status');
+    const date = document.getElementById('f-date');
+    const pic = document.getElementById('f-pic');
+    const initial = document.getElementById('f-initial');
+
+    if (mode === 'add') {
+      title.textContent = 'Add Problem';
+      cust.value=''; unit.value=''; status.value='Down';
+      date.value = new Date().toISOString().slice(0,10);
+      pic.value=''; initial.value='';
+      modal.dataset.mode='add'; modal.dataset.id='';
+    } else {
+      const arr = load(); const m = arr.find(x=>x.id==id);
+      if(!m) return;
+      title.textContent = 'Edit Problem';
+      cust.value = m.customer || '';
+      unit.value = m.machine_name || '';
+      status.value = m.status || 'Down';
+      // set yyyy-mm-dd
+      let d = m.reported_date || new Date().toISOString().slice(0,10);
+      const dt = new Date(d);
+      if (!isNaN(dt)) d = dt.toISOString().slice(0,10);
+      date.value = d;
+      pic.value = m.pic || '';
+      initial.value = '';
+      modal.dataset.mode='edit'; modal.dataset.id = m.id;
+    }
+  }
+
+  // Close modals
+  document.getElementById('admin-close').addEventListener('click', ()=> { adminModal.classList.remove('active'); adminPinInput.value=''; });
+  problemClose.addEventListener('click', ()=> problemModal.classList.remove('active'));
+  formCancel.addEventListener('click', ()=> problemModal.classList.remove('active'));
+  detailClose.addEventListener('click', ()=> detailModal.classList.remove('active'));
+
+  // Admin toggle -> open admin modal
+  adminToggle.addEventListener('click', ()=> {
+    if (isAdmin()) {
+      localStorage.setItem('admin_mode','false'); renderAll();
+    } else {
+      adminModal.classList.add('active');
+      adminPinInput.value=''; adminPinInput.focus();
+    }
+  });
+
+  // Admin login
+  adminLoginBtn.addEventListener('click', ()=> {
+    const pin = adminPinInput.value.trim();
+    if (pin === '0101') {
+      localStorage.setItem('admin_mode','true');
+      adminModal.classList.remove('active');
+      adminPinInput.value='';
+      renderAll();
+      alert('Admin Mode activated');
+    } else {
+      alert('PIN salah');
+    }
+  });
+
+  // Add problem button => open form (not auto-add)
+  addProblemBtn.addEventListener('click', ()=> {
+    if (!isAdmin()) { alert('Admin Mode required to add problem'); return; }
+    openProblemForm('add', null);
+  });
+
+  // Submit form (add or edit)
+  formSubmit.addEventListener('click', ()=> {
+    const mode = problemModal.dataset.mode || 'add';
+    const id = problemModal.dataset.id || '';
+    const cust = document.getElementById('f-customer').value.trim();
+    const unit = document.getElementById('f-unit').value.trim();
+    const status = document.getElementById('f-status').value;
+    const date = document.getElementById('f-date').value;
+    const pic = document.getElementById('f-pic').value.trim() || 'Unknown';
+    const initial = document.getElementById('f-initial').value.trim();
+
+    if (!cust || !unit || !date) { alert('Lengkapi Customer, Unit, dan Reported Date'); return; }
+
+    const arr = load();
+    if (mode === 'add') {
+      const newId = uid();
+      const newRec = { id: newId, customer: cust, machine_name: unit, status: status, reported_date: date, pic: pic, updates: [] };
+      if (initial) newRec.updates.push({ ts: new Date().toISOString(), author: pic, message: initial });
+      arr.push(newRec);
+      save(arr);
+      problemModal.classList.remove('active');
+      renderAll();
+    } else {
+      const mid = parseInt(id);
+      const idx = arr.findIndex(x=>x.id==mid);
+      if (idx === -1) { alert('Data tidak ditemukan'); return; }
+      arr[idx].customer = cust;
+      arr[idx].machine_name = unit;
+      arr[idx].status = status;
+      arr[idx].reported_date = date;
+      arr[idx].pic = pic;
+      if (initial) arr[idx].updates.push({ ts: new Date().toISOString(), author: pic, message: initial });
+      save(arr);
+      problemModal.classList.remove('active');
+      renderAll();
+    }
+  });
+
+  // Add Update from detail view (modal sub-form)
+  function openAddUpdate(mid) {
+    if (!isAdmin()) { alert('Admin required'); return; }
+    const arr = load(); const m = arr.find(x=>x.id==mid); if(!m) return;
+    // Show a small inline prompt inside detail modal
+    const body = document.getElementById('detail-body');
+    const formHtml = `
+      <div style="margin-top:12px;border-top:1px solid #f1f8ff;padding-top:12px;">
+        <div class="row"><label>PIC</label><input id="tmp-upd-pic" type="text" value="${escapeHtml(m.pic)}" /></div>
+        <div class="row"><label>Message</label><textarea id="tmp-upd-msg"></textarea></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+          <button class="btn secondary" id="tmp-upd-cancel">Cancel</button>
+          <button class="btn" id="tmp-upd-save">Save Update</button>
+        </div>
+      </div>
+    `;
+    body.insertAdjacentHTML('beforeend', formHtml);
+    document.getElementById('tmp-upd-cancel').addEventListener('click', ()=> { renderDetailInline(mid); });
+    document.getElementById('tmp-upd-save').addEventListener('click', ()=> {
+      const author = document.getElementById('tmp-upd-pic').value.trim() || m.pic || 'Unknown';
+      const msg = document.getElementById('tmp-upd-msg').value.trim();
+      if (!msg) { alert('Message tidak boleh kosong'); return; }
+      m.updates = m.updates || [];
+      m.updates.push({ ts: new Date().toISOString(), author: author, message: msg });
+      save(arr);
+      renderDetailInline(mid);
+      renderAll(); // update table history
+    });
+  }
+
+  // Render detail modal body again (used to refresh inline forms)
+  function renderDetailInline(mid) {
+    const data = load(); const m = data.find(x=>x.id==mid); if(!m) return;
+    // reuse openDetail structure by closing and reopening to refresh
+    detailModal.classList.remove('active');
+    setTimeout(()=> openDetail(mid), 120);
+  }
+
+  // Edit update: open inline edit form for a specific update index
+  function openEditUpdate(mid, updIndex) {
+    if (!isAdmin()) return;
+    const arr = load(); const m = arr.find(x=>x.id==mid); if(!m) return;
+    const original = m.updates[updIndex];
+    const body = document.getElementById('detail-body');
+    const formHtml = `
+      <div style="margin-top:12px;border-top:1px dashed #eef4ff;padding-top:12px;">
+        <div class="row"><label>PIC</label><input id="edit-upd-pic" type="text" value="${escapeHtml(original.author)}"/></div>
+        <div class="row"><label>Message</label><textarea id="edit-upd-msg">${escapeHtml(original.message)}</textarea></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+          <button class="btn secondary" id="edit-upd-cancel">Cancel</button>
+          <button class="btn" id="edit-upd-save">Save Changes</button>
+        </div>
+      </div>`;
+    body.insertAdjacentHTML('beforeend', formHtml);
+    document.getElementById('edit-upd-cancel').addEventListener('click', ()=> { renderDetailInline(mid); });
+    document.getElementById('edit-upd-save').addEventListener('click', ()=> {
+      const a = document.getElementById('edit-upd-pic').value.trim() || m.pic || 'Unknown';
+      const msg = document.getElementById('edit-upd-msg').value.trim();
+      if (!msg) { alert('Message tidak boleh kosong'); return; }
+      m.updates[updIndex].author = a;
+      m.updates[updIndex].message = msg;
+      // keep ts as original or update ts? we keep original ts for traceability
+      save(arr);
+      renderDetailInline(mid);
+      renderAll();
+    });
+  }
+
+  // Reset data (for demo) - confirmation
+  clearBtn.addEventListener('click', ()=> {
+    if (!confirm('Reset data ke default? Ini akan menghapus perubahan Anda.')) return;
+    localStorage.removeItem('machines_demo');
+    localStorage.removeItem('admin_mode');
+    location.reload();
+  });
+
+  // init render
+  function renderAll() {
+    renderAdminStatus();
+    renderSummary();
+    renderTable();
+  }
+
+  // wire detail modal close on overlay click / Esc
+  document.getElementById('detail-modal').addEventListener('click', (e)=>{ if (e.target === document.getElementById('detail-modal')) detailModal.classList.remove('active'); });
+  document.getElementById('problem-form-modal').addEventListener('click', (e)=>{ if (e.target === document.getElementById('problem-form-modal')) problemModal.classList.remove('active'); });
+  document.getElementById('admin-modal').addEventListener('click', (e)=>{ if (e.target === document.getElementById('admin-modal')) adminModal.classList.remove('active'); });
+
+  // initial call
+  renderAll();
+
+  // keyboard Esc to close modals
+  document.addEventListener('keydown', (e)=> {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay.active').forEach(m=>m.classList.remove('active'));
+    }
+  });
+</script>
+</body>
+</html>
+"""
+
+st_html(HTML, height=1300, scrolling=True)
