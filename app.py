@@ -96,7 +96,7 @@ HTML = r"""<!DOCTYPE html>
       <div class="controls">
         <button class="btn" id="add-problem-btn">➕ Add Problem</button>
         <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
-        <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
+        <button class="btn ghost" id="clear-data-btn">Reset Data</button>
       </div>
     </div>
 
