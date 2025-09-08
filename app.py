@@ -1,9 +1,4 @@
-import streamlit as st
-from streamlit.components.v1 import html as st_html
-
-st.set_page_config(page_title="Report Problem Aesthetic", layout="wide")
-
-HTML = r"""<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
@@ -15,7 +10,7 @@ HTML = r"""<!DOCTYPE html>
   <style>
     :root { --primary: #1e40af; --accent: #2563eb; --bg1: linear-gradient(135deg,#e0e7ff,#c7d2fe); }
     body {
-      margin:0; padding:28px; min-height:100vh;
+      margin:0; padding:20px; min-height:100vh;
       font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       background: var(--bg1);
       color: #0f172a;
@@ -24,7 +19,7 @@ HTML = r"""<!DOCTYPE html>
     h1.app-title {
       font-weight: 900;
       color: var(--primary);
-      font-size: 4rem; /* very large */
+      font-size: 3rem;
       text-align: center;
       margin: 6px 0 20px 0;
       letter-spacing: -1px;
@@ -47,16 +42,20 @@ HTML = r"""<!DOCTYPE html>
 
     .kpi.all { background: linear-gradient(45deg,#475569,#334155); }
     .kpi.down { background: linear-gradient(45deg,#dc2626,#b91c1c); }
+    .kpi.hold { background: linear-gradient(45deg,#ea580c,#d97706); }
     .kpi.running { background: linear-gradient(45deg,#059669,#10b981); }
+    .kpi.solved { background: linear-gradient(45deg,#4f46e5,#6366f1); }
 
-    .table-wrapper { background:#ffffffdd; padding:10px; border-radius:12px; box-shadow:0 10px 40px rgba(2,6,23,0.06); overflow-x:auto; }
+    .table-wrapper { background:#ffffffdd; padding:10px; border-radius:12px; box-shadow:0 10px 40px rgba(2,6,23,0.06); overflow-x:auto; margin-bottom: 20px; }
     table { width:100%; border-collapse: separate; border-spacing:0 10px; min-width:800px; }
     th { background:var(--accent); color:white; padding:12px 14px; text-align:left; font-weight:800; }
     td { background:white; padding:12px 14px; color:#0f172a; vertical-align:middle; font-weight:700; }
     tr td { box-shadow:0 6px 18px rgba(2,6,23,0.04); border-radius:8px; }
     .status-badge { padding:6px 14px; border-radius:999px; color:white; font-weight:900; }
     .status-down { background:#b91c1c; }
+    .status-hold { background:#ea580c; }
     .status-running { background:#059669; }
+    .status-solved { background:#4f46e5; }
 
     .detail-link { background:none; border:none; color:var(--accent); text-decoration:underline; font-weight:900; cursor:pointer; }
 
@@ -82,21 +81,16 @@ HTML = r"""<!DOCTYPE html>
     .muted-plain { color:#475569; font-weight:800; }
 
     @media (max-width:720px) {
-      h1.app-title { font-size:3rem; }
+      h1.app-title { font-size:2.5rem; }
       .kpi { width:46%; }
     }
   </style>
 </head>
 <body>
-
-
   <div class="wrap">
     <h1 class="app-title">Report Problem Aesthetic</h1>
-      </div>
 
     <div class="summary" id="summary" role="tablist" aria-label="summary filters"></div>
-
-  <div class="wrap">
 
     <div class="topbar">
       <div class="admin-status" id="admin-status">
@@ -107,12 +101,18 @@ HTML = r"""<!DOCTYPE html>
         <button class="btn success" id="export-excel-btn">📊 Export to Excel</button>
         <button class="btn" id="add-problem-btn">➕ Add Problem</button>
         <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
-        <button class="btn ghost" id="clear-data-btn"></button>
+        <button class="btn ghost" id="clear-data-btn">Reset Data</button>
       </div>
     </div>
     
+    <h2 style="font-weight:900; color:var(--primary); margin-bottom:12px;">Active Problems</h2>
     <div class="table-wrapper" aria-live="polite">
       <table id="machine-table" role="table"></table>
+    </div>
+    
+    <h2 style="font-weight:900; color:var(--primary); margin-bottom:12px;">Solved Problems</h2>
+    <div class="table-wrapper" aria-live="polite">
+      <table id="solved-table" role="table"></table>
     </div>
   </div>
 
@@ -127,7 +127,7 @@ HTML = r"""<!DOCTYPE html>
         <input id="admin-pin" type="password" placeholder="4-digit PIN" />
         <button class="btn" id="admin-login-btn">Login</button>
       </div>
-      <div class="small muted-plain"><strongstrong></div>
+      <div class="small muted-plain"><strong>Default PIN: 0101</strong></div>
     </div>
   </div>
 
@@ -139,7 +139,12 @@ HTML = r"""<!DOCTYPE html>
       <div id="form-body">
         <div class="row"><label>Customer</label><input id="f-customer" type="text" /></div>
         <div class="row"><label>Unit</label><input id="f-unit" type="text" /></div>
-        <div class="row"><label>Status</label><select id="f-status"><option>Down</option><option>Running</option></select></div>
+        <div class="row"><label>Status</label><select id="f-status">
+          <option>Down</option>
+          <option>Hold by Customer</option>
+          <option>Running</option>
+          <option>Solved</option>
+        </select></div>
         <div class="row"><label>Reported Date</label><input id="f-date" type="date" /></div>
         <div class="row"><label>PIC</label><input id="f-pic" type="text" /></div>
         <div class="row"><label>Initial Update</label><textarea id="f-initial" placeholder="Optional initial update"></textarea></div>
@@ -170,6 +175,13 @@ HTML = r"""<!DOCTYPE html>
       ]},
       { id: 2, customer: 'RS BIH Sanur', machine_name: 'Cynosure Revlite', status: 'Running', reported_date: '2023-10-02', pic: 'Muhammad Lukmansyah', updates: [
         { ts: '2023-10-05T09:00:00', author: 'Muhammad Lukmansyah', message: 'Routine check - all OK.' }
+      ]},
+      { id: 3, customer: 'Klinik Cantik', machine_name: 'Fotona Starwalker', status: 'Hold by Customer', reported_date: '2023-10-10', pic: 'Budi Santoso', updates: [
+        { ts: '2023-10-11T10:00:00', author: 'Budi Santoso', message: 'Customer requested to hold until next month.' }
+      ]},
+      { id: 4, customer: 'Klinik Sehat', machine_name: 'Lumenis M22', status: 'Solved', reported_date: '2023-09-15', solved_date: '2023-09-20', pic: 'Ahmad Fauzi', updates: [
+        { ts: '2023-09-16T11:00:00', author: 'Ahmad Fauzi', message: 'Identified power supply issue.' },
+        { ts: '2023-09-20T14:00:00', author: 'Ahmad Fauzi', message: 'Replaced power supply unit. Machine now working properly.' }
       ]}
     ];
     localStorage.setItem('machines_demo', JSON.stringify(defaultData));
@@ -189,10 +201,16 @@ HTML = r"""<!DOCTYPE html>
     if (!isNaN(dt)) return dt.toLocaleDateString();
     return d;
   }
-  function agingDays(date) {
-    const now = new Date(); const rep = new Date(date);
-    const diff = now - rep;
+  function agingDays(date, solvedDate = null) {
+    const now = new Date(); 
+    const rep = new Date(date);
+    const endDate = solvedDate ? new Date(solvedDate) : now;
+    const diff = endDate - rep;
     return Math.max(0, Math.floor(diff / (1000*60*60*24)));
+  }
+  function formatUpdateDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleString();
   }
 
   // Excel Export Function
@@ -214,7 +232,9 @@ HTML = r"""<!DOCTYPE html>
       ['Category', 'Count', 'Percentage', ''],
       ['Total Problems', data.length, '100%', ''],
       ['Down Machines', data.filter(d => d.status === 'Down').length, `${((data.filter(d => d.status === 'Down').length / data.length) * 100).toFixed(1)}%`, ''],
+      ['Hold by Customer', data.filter(d => d.status === 'Hold by Customer').length, `${((data.filter(d => d.status === 'Hold by Customer').length / data.length) * 100).toFixed(1)}%`, ''],
       ['Running Machines', data.filter(d => d.status === 'Running').length, `${((data.filter(d => d.status === 'Running').length / data.length) * 100).toFixed(1)}%`, ''],
+      ['Solved Machines', data.filter(d => d.status === 'Solved').length, `${((data.filter(d => d.status === 'Solved').length / data.length) * 100).toFixed(1)}%`, ''],
     ];
     const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
     
@@ -224,12 +244,13 @@ HTML = r"""<!DOCTYPE html>
     ];
     XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
 
-    // Main Data Sheet
+    // Main Data Sheet (Active Problems)
+    const activeData = data.filter(d => d.status !== 'Solved');
     const mainData = [
       ['ID', 'Customer', 'Machine/Unit', 'Status', 'Reported Date', 'Aging (Days)', 'PIC', 'Latest Update', 'Total Updates']
     ];
     
-    data.forEach(machine => {
+    activeData.forEach(machine => {
       const latestUpdate = machine.updates && machine.updates.length > 0 ? 
         machine.updates[machine.updates.length - 1].message : 'No updates yet';
       
@@ -258,7 +279,43 @@ HTML = r"""<!DOCTYPE html>
     });
     
     mainWs['!cols'] = maxWidth.map(w => ({ width: Math.min(w + 2, 50) }));
-    XLSX.utils.book_append_sheet(wb, mainWs, 'Machine Problems');
+    XLSX.utils.book_append_sheet(wb, mainWs, 'Active Problems');
+
+    // Solved Machines Sheet
+    const solvedData = data.filter(d => d.status === 'Solved');
+    if (solvedData.length > 0) {
+      const solvedSheetData = [
+        ['ID', 'Customer', 'Machine/Unit', 'Reported Date', 'Solved Date', 'Resolution Time (Days)', 'PIC', 'Final Update']
+      ];
+      
+      solvedData.forEach(machine => {
+        const finalUpdate = machine.updates && machine.updates.length > 0 ? 
+          machine.updates[machine.updates.length - 1].message : 'No updates yet';
+        
+        solvedSheetData.push([
+          machine.id,
+          machine.customer || '',
+          machine.machine_name || '',
+          formatDate(machine.reported_date),
+          formatDate(machine.solved_date),
+          agingDays(machine.reported_date, machine.solved_date),
+          machine.pic || '',
+          finalUpdate
+        ]);
+      });
+      
+      const solvedWs = XLSX.utils.aoa_to_sheet(solvedSheetData);
+      const solvedMaxWidth = [];
+      solvedSheetData.forEach(row => {
+        row.forEach((cell, idx) => {
+          const cellLength = cell ? cell.toString().length : 0;
+          solvedMaxWidth[idx] = Math.max(solvedMaxWidth[idx] || 0, cellLength);
+        });
+      });
+      
+      solvedWs['!cols'] = solvedMaxWidth.map(w => ({ width: Math.min(w + 2, 50) }));
+      XLSX.utils.book_append_sheet(wb, solvedWs, 'Solved Problems');
+    }
 
     // Updates Detail Sheet
     const updatesData = [
@@ -293,41 +350,6 @@ HTML = r"""<!DOCTYPE html>
     
     updatesWs['!cols'] = updatesMaxWidth.map(w => ({ width: Math.min(w + 2, 60) }));
     XLSX.utils.book_append_sheet(wb, updatesWs, 'All Updates');
-
-    // Down Machines Sheet (filtered)
-    const downMachines = data.filter(d => d.status === 'Down');
-    if (downMachines.length > 0) {
-      const downData = [
-        ['ID', 'Customer', 'Machine/Unit', 'Reported Date', 'Aging (Days)', 'PIC', 'Latest Update']
-      ];
-      
-      downMachines.forEach(machine => {
-        const latestUpdate = machine.updates && machine.updates.length > 0 ? 
-          machine.updates[machine.updates.length - 1].message : 'No updates yet';
-        
-        downData.push([
-          machine.id,
-          machine.customer || '',
-          machine.machine_name || '',
-          formatDate(machine.reported_date),
-          agingDays(machine.reported_date),
-          machine.pic || '',
-          latestUpdate
-        ]);
-      });
-      
-      const downWs = XLSX.utils.aoa_to_sheet(downData);
-      const downMaxWidth = [];
-      downData.forEach(row => {
-        row.forEach((cell, idx) => {
-          const cellLength = cell ? cell.toString().length : 0;
-          downMaxWidth[idx] = Math.max(downMaxWidth[idx] || 0, cellLength);
-        });
-      });
-      
-      downWs['!cols'] = downMaxWidth.map(w => ({ width: Math.min(w + 2, 50) }));
-      XLSX.utils.book_append_sheet(wb, downWs, 'Down Machines');
-    }
 
     // Generate filename with timestamp
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
@@ -377,12 +399,16 @@ HTML = r"""<!DOCTYPE html>
     const data = load();
     const total = data.length;
     const down = data.filter(d=>d.status==='Down').length;
+    const hold = data.filter(d=>d.status==='Hold by Customer').length;
     const running = data.filter(d=>d.status==='Running').length;
+    const solved = data.filter(d=>d.status==='Solved').length;
     const el = document.getElementById('summary');
     el.innerHTML = `
       <div class="kpi all" data-key="all" role="button" tabindex="0"><div class="label">Total Problem</div><div class="value">${total}</div></div>
       <div class="kpi down" data-key="Down" role="button" tabindex="0"><div class="label">Total Down</div><div class="value">${down}</div></div>
+      <div class="kpi hold" data-key="Hold by Customer" role="button" tabindex="0"><div class="label">Hold by Customer</div><div class="value">${hold}</div></div>
       <div class="kpi running" data-key="Running" role="button" tabindex="0"><div class="label">Total Running</div><div class="value">${running}</div></div>
+      <div class="kpi solved" data-key="Solved" role="button" tabindex="0"><div class="label">Total Solved</div><div class="value">${solved}</div></div>
     `;
     el.querySelectorAll('.kpi').forEach(k=>{
       k.addEventListener('click', ()=> {
@@ -393,39 +419,82 @@ HTML = r"""<!DOCTYPE html>
     });
   }
 
-  // Table (History column shows last update message)
-function renderTable() {
-  const data = load();
-  let list = data;
-  if (currentFilter === 'Down') list = data.filter(x=>x.status==='Down');
-  else if (currentFilter === 'Running') list = data.filter(x=>x.status==='Running');
+  // Table for active problems
+  function renderTable() {
+    const data = load();
+    let list = data.filter(x => x.status !== 'Solved');
+    if (currentFilter !== 'all') list = list.filter(x=>x.status===currentFilter);
 
-  const table = document.getElementById('machine-table');
-  let html = `<tr><th>ID</th><th>Customer</th><th>Unit</th><th>Status</th><th>Aging (days)</th><th>Action Plan</th><th>History</th></tr>`;
-  if (list.length === 0) {
-    html += `<tr><td colspan="7" class="small muted-plain" style="padding:24px;text-align:center">No machines found.</td></tr>`;
-  } else {
-    list.forEach(m => {
-      const last = (m.updates && m.updates.length) ? m.updates[m.updates.length-1].message : 'No updates yet';
-      html += `<tr>
-        <td>${m.id}</td>
-        <td>${escapeHtml(m.customer)}</td>
-        <td>${escapeHtml(m.machine_name)}</td>
-        <td><span class="status-badge ${m.status==='Down'?'status-down':'status-running'}">${m.status}</span></td>
-        <td>${agingDays(m.reported_date)}</td>
-        <td>${escapeHtml(last)}</td>
-        <td><button class="detail-link" data-id="${m.id}">Click Here</button></td>
-      </tr>`;
+    const table = document.getElementById('machine-table');
+    let html = `<tr><th>ID</th><th>Customer</th><th>Unit</th><th>Status</th><th>Aging (days)</th><th>Action Plan</th><th>History</th></tr>`;
+    if (list.length === 0) {
+      html += `<tr><td colspan="7" class="small muted-plain" style="padding:24px;text-align:center">No active problems found.</td></tr>`;
+    } else {
+      list.forEach(m => {
+        const last = (m.updates && m.updates.length) ? m.updates[m.updates.length-1].message : 'No updates yet';
+        html += `<tr>
+          <td>${m.id}</td>
+          <td>${escapeHtml(m.customer)}</td>
+          <td>${escapeHtml(m.machine_name)}</td>
+          <td><span class="status-badge ${getStatusClass(m.status)}">${m.status}</span></td>
+          <td>${agingDays(m.reported_date)}</td>
+          <td>${escapeHtml(last)}</td>
+          <td><button class="detail-link" data-id="${m.id}">Click Here</button></td>
+        </tr>`;
+      });
+    }
+    table.innerHTML = html;
+
+    // Attach detail handlers
+    table.querySelectorAll('.detail-link').forEach(btn => {
+      btn.addEventListener('click', ()=> openDetail(btn.dataset.id));
+    });
+    
+    // Render solved table
+    renderSolvedTable();
+  }
+
+  // Table for solved problems
+  function renderSolvedTable() {
+    const data = load();
+    const solvedList = data.filter(x => x.status === 'Solved');
+    
+    const table = document.getElementById('solved-table');
+    let html = `<tr><th>ID</th><th>Customer</th><th>Unit</th><th>Reported Date</th><th>Solved Date</th><th>Resolution Time (days)</th><th>PIC</th><th>History</th></tr>`;
+    if (solvedList.length === 0) {
+      html += `<tr><td colspan="8" class="small muted-plain" style="padding:24px;text-align:center">No solved problems found.</td></tr>`;
+    } else {
+      solvedList.forEach(m => {
+        html += `<tr>
+          <td>${m.id}</td>
+          <td>${escapeHtml(m.customer)}</td>
+          <td>${escapeHtml(m.machine_name)}</td>
+          <td>${formatDate(m.reported_date)}</td>
+          <td>${formatDate(m.solved_date)}</td>
+          <td>${agingDays(m.reported_date, m.solved_date)}</td>
+          <td>${escapeHtml(m.pic)}</td>
+          <td><button class="detail-link" data-id="${m.id}">Click Here</button></td>
+        </tr>`;
+      });
+    }
+    table.innerHTML = html;
+
+    // Attach detail handlers
+    table.querySelectorAll('.detail-link').forEach(btn => {
+      btn.addEventListener('click', ()=> openDetail(btn.dataset.id));
     });
   }
-  table.innerHTML = html;
 
-  // Attach detail handlers
-  table.querySelectorAll('.detail-link').forEach(btn => {
-    btn.addEventListener('click', ()=> openDetail(btn.dataset.id));
-  });
-}
-
+  // Get CSS class for status badge
+  function getStatusClass(status) {
+    switch(status) {
+      case 'Down': return 'status-down';
+      case 'Hold by Customer': return 'status-hold';
+      case 'Running': return 'status-running';
+      case 'Solved': return 'status-solved';
+      default: return 'status-down';
+    }
+  }
 
   // Escape HTML
   function escapeHtml(s) {
@@ -444,18 +513,25 @@ function renderTable() {
       <div class="row"><label>Customer</label><div class="muted-plain">${escapeHtml(m.customer)}</div></div>
       <div class="row"><label>Unit</label><div class="muted-plain">${escapeHtml(m.machine_name)}</div></div>
       <div class="row"><label>Status</label><div class="muted-plain">${m.status}</div></div>
-      <div class="row"><label>Reported Date</label><div class="muted-plain">${formatDate(m.reported_date)}</div></div>
-      <div class="row"><label>PIC</label><div class="muted-plain">${escapeHtml(m.pic)}</div></div>
+      <div class="row"><label>Reported Date</label><div class="muted-plain">${formatDate(m.reported_date)}</div></div>`;
+      
+    if (m.status === 'Solved') {
+      html += `<div class="row"><label>Solved Date</label><div class="muted-plain">${formatDate(m.solved_date)}</div></div>
+      <div class="row"><label>Resolution Time</label><div class="muted-plain">${agingDays(m.reported_date, m.solved_date)} days</div></div>`;
+    }
+      
+    html += `<div class="row"><label>PIC</label><div class="muted-plain">${escapeHtml(m.pic)}</div></div>
       <hr style="margin:12px 0;border:none;border-top:1px solid #eef4ff" />
       <h3 class="small">History (all updates)</h3>
       <div id="updates-list">`;
+      
     if (m.updates && m.updates.length) {
       m.updates.slice().reverse().forEach((u, idx) => {
         // compute original index for delete mapping
         const origIndex = m.updates.length - 1 - idx;
         html += `<div class="update-item">
           <div>
-            <div class="update-meta">${escapeHtml(u.author)} • ${escapeHtml(u.ts)}</div>
+            <div class="update-meta">${escapeHtml(u.author)} • ${formatUpdateDate(u.ts)}</div>
             <div class="update-left">${escapeHtml(u.message)}</div>
           </div>
           ${isAdmin() ? `<div style="display:flex;flex-direction:column;gap:8px;">
@@ -473,8 +549,13 @@ function renderTable() {
     if (isAdmin()) {
       html += `<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
         <button class="btn secondary" id="detail-edit-btn">Edit Problem</button>
-        <button class="btn" id="detail-addupd-btn">Add Update</button>
-        <button class="danger" id="detail-delete-btn">Delete Problem</button>
+        <button class="btn" id="detail-addupd-btn">Add Update</button>`;
+        
+      if (m.status !== 'Solved') {
+        html += `<button class="btn success" id="detail-solve-btn">Mark as Solved</button>`;
+      }
+        
+      html += `<button class="danger" id="detail-delete-btn">Delete Problem</button>
       </div>`;
     }
     body.innerHTML = html;
@@ -484,6 +565,11 @@ function renderTable() {
     if (isAdmin()) {
       document.getElementById('detail-edit-btn').addEventListener('click', ()=> openProblemForm('edit', m.id));
       document.getElementById('detail-addupd-btn').addEventListener('click', ()=> openAddUpdate(m.id));
+      
+      if (m.status !== 'Solved') {
+        document.getElementById('detail-solve-btn').addEventListener('click', ()=> markAsSolved(m.id));
+      }
+      
       document.getElementById('detail-delete-btn').addEventListener('click', ()=> {
         if (!confirm('Delete this problem permanently?')) return;
         const arr = load().filter(x=>x.id!=m.id);
@@ -513,6 +599,21 @@ function renderTable() {
     }
   }
 
+  // Mark problem as solved
+  function markAsSolved(id) {
+    const arr = load();
+    const m = arr.find(x=>x.id==id);
+    if (!m) return;
+    
+    m.status = 'Solved';
+    m.solved_date = new Date().toISOString().split('T')[0];
+    
+    save(arr);
+    detailModal.classList.remove('active');
+    renderAll();
+    alert('Problem marked as solved!');
+  }
+
   // Open Add/Edit Problem Form (admin only). mode: 'add'|'edit'
   function openProblemForm(mode='add', id=null) {
     if (!isAdmin()) { alert('Admin mode required'); return; }
@@ -528,205 +629,4 @@ function renderTable() {
 
     if (mode === 'add') {
       title.textContent = 'Add Problem';
-      cust.value=''; unit.value=''; status.value='Down';
-      date.value = new Date().toISOString().slice(0,10);
-      pic.value=''; initial.value='';
-      modal.dataset.mode='add'; modal.dataset.id='';
-    } else {
-      const arr = load(); const m = arr.find(x=>x.id==id);
-      if(!m) return;
-      title.textContent = 'Edit Problem';
-      cust.value = m.customer || '';
-      unit.value = m.machine_name || '';
-      status.value = m.status || 'Down';
-      // set yyyy-mm-dd
-      let d = m.reported_date || new Date().toISOString().slice(0,10);
-      const dt = new Date(d);
-      if (!isNaN(dt)) d = dt.toISOString().slice(0,10);
-      date.value = d;
-      pic.value = m.pic || '';
-      initial.value = '';
-      modal.dataset.mode='edit'; modal.dataset.id = m.id;
-    }
-  }
-
-  // Close modals
-  document.getElementById('admin-close').addEventListener('click', ()=> { adminModal.classList.remove('active'); adminPinInput.value=''; });
-  problemClose.addEventListener('click', ()=> problemModal.classList.remove('active'));
-  formCancel.addEventListener('click', ()=> problemModal.classList.remove('active'));
-  detailClose.addEventListener('click', ()=> detailModal.classList.remove('active'));
-
-  // Admin toggle -> open admin modal
-  adminToggle.addEventListener('click', ()=> {
-    if (isAdmin()) {
-      localStorage.setItem('admin_mode','false'); renderAll();
-    } else {
-      adminModal.classList.add('active');
-      adminPinInput.value=''; adminPinInput.focus();
-    }
-  });
-
-  // Admin login
-  adminLoginBtn.addEventListener('click', ()=> {
-    const pin = adminPinInput.value.trim();
-    if (pin === '0101') {
-      localStorage.setItem('admin_mode','true');
-      adminModal.classList.remove('active');
-      adminPinInput.value='';
-      renderAll();
-      alert('Admin Mode activated');
-    } else {
-      alert('PIN salah');
-    }
-  });
-
-  // Add problem button => open form (not auto-add)
-  addProblemBtn.addEventListener('click', ()=> {
-    if (!isAdmin()) { alert('Admin Mode required to add problem'); return; }
-    openProblemForm('add', null);
-  });
-
-  // Submit form (add or edit)
-  formSubmit.addEventListener('click', ()=> {
-    const mode = problemModal.dataset.mode || 'add';
-    const id = problemModal.dataset.id || '';
-    const cust = document.getElementById('f-customer').value.trim();
-    const unit = document.getElementById('f-unit').value.trim();
-    const status = document.getElementById('f-status').value;
-    const date = document.getElementById('f-date').value;
-    const pic = document.getElementById('f-pic').value.trim() || 'Unknown';
-    const initial = document.getElementById('f-initial').value.trim();
-
-    if (!cust || !unit || !date) { alert('Lengkapi Customer, Unit, dan Reported Date'); return; }
-
-    const arr = load();
-    if (mode === 'add') {
-      const newId = uid();
-      const newRec = { id: newId, customer: cust, machine_name: unit, status: status, reported_date: date, pic: pic, updates: [] };
-      if (initial) newRec.updates.push({ ts: new Date().toISOString(), author: pic, message: initial });
-      arr.push(newRec);
-      save(arr);
-      problemModal.classList.remove('active');
-      renderAll();
-    } else {
-      const mid = parseInt(id);
-      const idx = arr.findIndex(x=>x.id==mid);
-      if (idx === -1) { alert('Data tidak ditemukan'); return; }
-      arr[idx].customer = cust;
-      arr[idx].machine_name = unit;
-      arr[idx].status = status;
-      arr[idx].reported_date = date;
-      arr[idx].pic = pic;
-      if (initial) arr[idx].updates.push({ ts: new Date().toISOString(), author: pic, message: initial });
-      save(arr);
-      problemModal.classList.remove('active');
-      renderAll();
-    }
-  });
-
-  // Add Update from detail view (modal sub-form)
-  function openAddUpdate(mid) {
-    if (!isAdmin()) { alert('Admin required'); return; }
-    const arr = load(); const m = arr.find(x=>x.id==mid); if(!m) return;
-    // Show a small inline prompt inside detail modal
-    const body = document.getElementById('detail-body');
-    const formHtml = `
-      <div style="margin-top:12px;border-top:1px solid #f1f8ff;padding-top:12px;">
-        <div class="row"><label>PIC</label><input id="tmp-upd-pic" type="text" value="${escapeHtml(m.pic)}" /></div>
-        <div class="row"><label>Message</label><textarea id="tmp-upd-msg"></textarea></div>
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
-          <button class="btn secondary" id="tmp-upd-cancel">Cancel</button>
-          <button class="btn" id="tmp-upd-save">Save Update</button>
-        </div>
-      </div>
-    `;
-    body.insertAdjacentHTML('beforeend', formHtml);
-    document.getElementById('tmp-upd-cancel').addEventListener('click', ()=> { renderDetailInline(mid); });
-    document.getElementById('tmp-upd-save').addEventListener('click', ()=> {
-      const author = document.getElementById('tmp-upd-pic').value.trim() || m.pic || 'Unknown';
-      const msg = document.getElementById('tmp-upd-msg').value.trim();
-      if (!msg) { alert('Message tidak boleh kosong'); return; }
-      m.updates = m.updates || [];
-      m.updates.push({ ts: new Date().toISOString(), author: author, message: msg });
-      save(arr);
-      renderDetailInline(mid);
-      renderAll(); // update table history
-    });
-  }
-
-  // Render detail modal body again (used to refresh inline forms)
-  function renderDetailInline(mid) {
-    const data = load(); const m = data.find(x=>x.id==mid); if(!m) return;
-    // reuse openDetail structure by closing and reopening to refresh
-    detailModal.classList.remove('active');
-    setTimeout(()=> openDetail(mid), 120);
-  }
-
-  // Edit update: open inline edit form for a specific update index
-  function openEditUpdate(mid, updIndex) {
-    if (!isAdmin()) return;
-    const arr = load(); const m = arr.find(x=>x.id==mid); if(!m) return;
-    const original = m.updates[updIndex];
-    const body = document.getElementById('detail-body');
-    const formHtml = `
-      <div style="margin-top:12px;border-top:1px dashed #eef4ff;padding-top:12px;">
-        <div class="row"><label>PIC</label><input id="edit-upd-pic" type="text" value="${escapeHtml(original.author)}"/></div>
-        <div class="row"><label>Message</label><textarea id="edit-upd-msg">${escapeHtml(original.message)}</textarea></div>
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
-          <button class="btn secondary" id="edit-upd-cancel">Cancel</button>
-          <button class="btn" id="edit-upd-save">Save Changes</button>
-        </div>
-      </div>`;
-    body.insertAdjacentHTML('beforeend', formHtml);
-    document.getElementById('edit-upd-cancel').addEventListener('click', ()=> { renderDetailInline(mid); });
-    document.getElementById('edit-upd-save').addEventListener('click', ()=> {
-      const a = document.getElementById('edit-upd-pic').value.trim() || m.pic || 'Unknown';
-      const msg = document.getElementById('edit-upd-msg').value.trim();
-      if (!msg) { alert('Message tidak boleh kosong'); return; }
-      m.updates[updIndex].author = a;
-      m.updates[updIndex].message = msg;
-      // keep ts as original or update ts? we keep original ts for traceability
-      save(arr);
-      renderDetailInline(mid);
-      renderAll();
-    });
-  }
-
-  // Reset data (for demo) - confirmation
-  clearBtn.addEventListener('click', ()=> {
-    if (!confirm('Reset data ke default? Ini akan menghapus perubahan Anda.')) return;
-    localStorage.removeItem('machines_demo');
-    localStorage.removeItem('admin_mode');
-    location.reload();
-  });
-
-  // Excel Export Event Listener
-  exportExcelBtn.addEventListener('click', exportToExcel);
-
-  // init render
-  function renderAll() {
-    renderAdminStatus();
-    renderSummary();
-    renderTable();
-  }
-
-  // wire detail modal close on overlay click / Esc
-  document.getElementById('detail-modal').addEventListener('click', (e)=>{ if (e.target === document.getElementById('detail-modal')) detailModal.classList.remove('active'); });
-  document.getElementById('problem-form-modal').addEventListener('click', (e)=>{ if (e.target === document.getElementById('problem-form-modal')) problemModal.classList.remove('active'); });
-  document.getElementById('admin-modal').addEventListener('click', (e)=>{ if (e.target === document.getElementById('admin-modal')) adminModal.classList.remove('active'); });
-
-  // initial call
-  renderAll();
-
-  // keyboard Esc to close modals
-  document.addEventListener('keydown', (e)=> {
-    if (e.key === 'Escape') {
-      document.querySelectorAll('.modal-overlay.active').forEach(m=>m.classList.remove('active'));
-    }
-  });
-</script>
-</body>
-</html>
-"""
-
-st_html(HTML, height=1300, scrolling=True)
+      cust
