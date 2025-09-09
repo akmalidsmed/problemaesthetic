@@ -95,6 +95,14 @@ HTML = r"""<!DOCTYPE html>
 </head>
 <body>
 
+  <div class="wrap">
+    <h1 class="app-title">Report Problem Aesthetic</h1>
+
+    <div class="topbar">
+      <div class="admin-status" id="admin-status">
+        <!-- Admin pill will be inserted here -->
+      </div>
+      
     <div class="summary" id="summary" role="tablist" aria-label="summary filters"></div>
 
   <div class="wrap">
