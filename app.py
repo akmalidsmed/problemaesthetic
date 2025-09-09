@@ -118,21 +118,6 @@ HTML = r"""<!DOCTYPE html>
       <table id="active-table" role="table"></table>
     </div>
 
-  <div class="wrap">
-
-    <div class="topbar">
-      <div class="admin-status" id="admin-status">
-        <!-- Admin pill will be inserted here -->
-      </div>
-
-      <div class="controls">
-        <button class="btn success" id="export-excel-btn">📊 Export to Excel</button>
-        <button class="btn" id="add-problem-btn">➕ Add Problem</button>
-        <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
-        <button class="btn ghost" id="clear-data-btn"></button>
-      </div>
-    </div>
-
     <div class="section-title">Solved Problems</div>
     <div class="table-wrapper" id="solved-table-wrapper" aria-live="polite">
       <table id="solved-table" role="table"></table>
