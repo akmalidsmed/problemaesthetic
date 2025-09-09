@@ -113,6 +113,22 @@ HTML = r"""<!DOCTYPE html>
 
     <div class="summary" id="summary" role="tablist" aria-label="summary filters"></div>
 
+  <div class="wrap">
+    <h1 class="app-title">Report Problem Aesthetic</h1>
+
+    <div class="topbar">
+      <div class="admin-status" id="admin-status">
+        <!-- Admin pill will be inserted here -->
+      </div>
+
+      <div class="controls">
+        <button class="btn success" id="export-excel-btn">📊 Export to Excel</button>
+        <button class="btn" id="add-problem-btn">➕ Add Problem</button>
+        <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
+        <button class="btn ghost" id="clear-data-btn"></button>
+      </div>
+    </div>
+    
     <div class="section-title">Active Problems</div>
     <div class="table-wrapper" id="active-table-wrapper" aria-live="polite">
       <table id="active-table" role="table"></table>
