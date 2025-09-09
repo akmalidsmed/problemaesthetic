@@ -119,7 +119,6 @@ HTML = r"""<!DOCTYPE html>
     </div>
 
   <div class="wrap">
-    <h1 class="app-title">Report Problem Aesthetic</h1>
 
     <div class="topbar">
       <div class="admin-status" id="admin-status">
