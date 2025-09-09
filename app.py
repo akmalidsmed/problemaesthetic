@@ -112,6 +112,11 @@ HTML = r"""<!DOCTYPE html>
     </div>
 
     <div class="summary" id="summary" role="tablist" aria-label="summary filters"></div>
+    
+    <div class="section-title">Active Problems</div>
+    <div class="table-wrapper" id="active-table-wrapper" aria-live="polite">
+      <table id="active-table" role="table"></table>
+    </div>
 
   <div class="wrap">
     <h1 class="app-title">Report Problem Aesthetic</h1>
@@ -127,11 +132,6 @@ HTML = r"""<!DOCTYPE html>
         <button class="btn secondary" id="admin-toggle-btn">🔑 Admin Mode</button>
         <button class="btn ghost" id="clear-data-btn"></button>
       </div>
-    </div>
-    
-    <div class="section-title">Active Problems</div>
-    <div class="table-wrapper" id="active-table-wrapper" aria-live="polite">
-      <table id="active-table" role="table"></table>
     </div>
 
     <div class="section-title">Solved Problems</div>
